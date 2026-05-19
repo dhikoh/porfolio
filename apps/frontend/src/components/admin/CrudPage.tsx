@@ -63,7 +63,7 @@ export default function CrudPage({ title, fields, fetchAll, create, update, remo
         await create(editing);
       } else {
         // Strip system fields that the backend DTO does not accept
-        const { id, createdAt, updatedAt, ...payload } = editing;
+        const { id, createdAt, updatedAt, deletedAt, ...payload } = editing;
         await update(id as string, payload);
       }
       setEditing(null);
