@@ -3,6 +3,7 @@ import { motion, useInView } from 'framer-motion';
 import { useRef } from 'react';
 import { ExternalLink, ChevronRight } from 'lucide-react';
 import Image from 'next/image';
+import { toDirectImageUrl } from '@/lib/image-utils';
 
 interface ProjectItem { id: string; title: string; slug: string; description: string; domain: string; liveUrl: string; imageUrl: string; videoUrl: string; tags: string; }
 
@@ -27,7 +28,7 @@ export default function WorkSection({ projects }: { projects: ProjectItem[] }) {
               <motion.div key={project.id} initial={{ opacity: 0, y: 30 }} animate={isInView ? { opacity: 1, y: 0 } : {}} transition={{ duration: 0.6, delay: idx * 0.1 }} className="group relative rounded-3xl bg-zinc-900/30 border border-white/5 overflow-hidden hover:border-white/10 transition-all duration-300">
                 <div className="relative aspect-video bg-zinc-800 overflow-hidden">
                   {project.imageUrl ? (
-                    <Image src={project.imageUrl} alt={project.title} fill className="object-cover group-hover:scale-105 transition-transform duration-700" />
+                    <Image src={toDirectImageUrl(project.imageUrl)} alt={project.title} fill className="object-cover group-hover:scale-105 transition-transform duration-700" />
                   ) : (
                     <div className="w-full h-full flex items-center justify-center"><span className="text-6xl font-bold text-zinc-700/50">{project.title[0]}</span></div>
                   )}

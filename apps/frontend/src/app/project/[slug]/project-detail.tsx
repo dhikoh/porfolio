@@ -3,6 +3,7 @@ import { motion } from 'framer-motion';
 import { ArrowLeft, ExternalLink, Code2 } from 'lucide-react';
 import Image from 'next/image';
 import Link from 'next/link';
+import { toDirectImageUrl } from '@/lib/image-utils';
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 export default function ProjectDetail({ project }: { project: any }) {
@@ -35,7 +36,7 @@ export default function ProjectDetail({ project }: { project: any }) {
         <motion.div initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6 }}>
           {project.imageUrl && (
             <div className="relative aspect-video rounded-3xl overflow-hidden bg-zinc-800 mb-8">
-              <Image src={project.imageUrl} alt={project.title} fill className="object-cover" />
+              <Image src={toDirectImageUrl(project.imageUrl)} alt={project.title} fill className="object-cover" />
             </div>
           )}
           <div className="flex flex-wrap gap-2 mb-6">
