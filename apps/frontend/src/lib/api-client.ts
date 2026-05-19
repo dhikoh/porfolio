@@ -260,4 +260,57 @@ export const api = {
 
   // Health
   getHealth: () => apiFetch<Record<string, unknown>>('/health'),
+
+  // Cover Letter
+  getCoverLetters: () => apiFetch<Record<string, unknown>[]>('/cover-letter'),
+  getCoverLetter: (id: string) => apiFetch<Record<string, unknown>>(`/cover-letter/${id}`),
+  createCoverLetter: (data: Record<string, unknown>) => apiFetch('/cover-letter', { method: 'POST', body: JSON.stringify(data) }),
+  deleteCoverLetter: (id: string) => apiFetch(`/cover-letter/${id}`, { method: 'DELETE' }),
+  generateCoverLetter: async (id: string, format: 'pdf' | 'docx') => {
+    const token = getAccessToken();
+    const res = await fetch(`${API_BASE}/cover-letter/${id}/generate?format=${format}`, {
+      method: 'POST',
+      headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+    });
+    if (!res.ok) throw new Error('Gagal generate surat');
+    const blob = await res.blob();
+    const disposition = res.headers.get('content-disposition') || '';
+    const match = disposition.match(/filename="?(.+?)"?$/);
+    const filename = match ? match[1] : `surat_lamaran.${format}`;
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    a.click();
+    URL.revokeObjectURL(url);
+  },
+  uploadSignature: async (file: File) => {
+    const formData = new FormData();
+    formData.append('file', file);
+    return apiFetch<{ signatureUrl: string }>('/cover-letter/upload-signature', { method: 'POST', body: formData });
+  },
+
+  // Document Merger
+  getMergedDocuments: () => apiFetch<Record<string, unknown>[]>('/document-merger'),
+  deleteMergedDocument: (id: string) => apiFetch(`/document-merger/${id}`, { method: 'DELETE' }),
+  mergeDocuments: async (files: File[], title?: string) => {
+    const formData = new FormData();
+    files.forEach(f => formData.append('files', f));
+    if (title) formData.append('title', title);
+    return apiFetch<Record<string, unknown>>('/document-merger/merge', { method: 'POST', body: formData });
+  },
+  downloadMergedDocument: async (id: string, title: string) => {
+    const token = getAccessToken();
+    const res = await fetch(`${API_BASE}/document-merger/${id}/download`, {
+      headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+    });
+    if (!res.ok) throw new Error('Gagal download dokumen');
+    const blob = await res.blob();
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${title}.pdf`;
+    a.click();
+    URL.revokeObjectURL(url);
+  },
 };

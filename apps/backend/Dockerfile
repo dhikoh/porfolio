@@ -14,6 +14,6 @@ COPY --from=builder /app/dist ./dist
 COPY --from=builder /app/package.json ./
 COPY --from=builder /app/docker-seed.js ./
 RUN npm install --omit=dev
-RUN mkdir -p /app/uploads/images /app/uploads/videos /app/uploads/documents
+RUN mkdir -p /app/uploads/images /app/uploads/videos /app/uploads/documents /app/uploads/signatures /app/uploads/merged
 EXPOSE 4000
 CMD ["node", "dist/main.js"]

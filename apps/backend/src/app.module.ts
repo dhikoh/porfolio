@@ -19,6 +19,8 @@ import { Message } from './entities/message.entity';
 import { PageView } from './entities/page-view.entity';
 import { SiteSetting } from './entities/site-setting.entity';
 import { AuditLog } from './entities/audit-log.entity';
+import { CoverLetter } from './entities/cover-letter.entity';
+import { MergedDocument } from './entities/merged-document.entity';
 
 // Feature Modules
 import { AuthModule } from './modules/auth/auth.module';
@@ -37,6 +39,8 @@ import { AnalyticsModule } from './modules/analytics/analytics.module';
 import { SettingsModule } from './modules/settings/settings.module';
 import { HealthModule } from './modules/health/health.module';
 import { ExportModule } from './modules/export/export.module';
+import { CoverLetterModule } from './modules/cover-letter/cover-letter.module';
+import { DocumentMergerModule } from './modules/document-merger/document-merger.module';
 import { LoggerModule } from './common/services/logger.module';
 import { AuditModule } from './common/services/audit.module';
 
@@ -62,7 +66,7 @@ import { AuditModule } from './common/services/audit.module';
         entities: [
           User, Profile, Project, Skill, Experience, Education,
           Timeline, Stat, ProcessStep, Media, Message, PageView,
-          SiteSetting, AuditLog,
+          SiteSetting, AuditLog, CoverLetter, MergedDocument,
         ],
         synchronize: true, // Safe for portfolio — auto-creates missing tables
         logging: config.get<string>('NODE_ENV') === 'development' ? ['error', 'warn'] : ['error'],
@@ -98,6 +102,8 @@ import { AuditModule } from './common/services/audit.module';
     SettingsModule,
     HealthModule,
     ExportModule,
+    CoverLetterModule,
+    DocumentMergerModule,
   ],
   providers: [
     {

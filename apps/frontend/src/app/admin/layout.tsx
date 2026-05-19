@@ -7,6 +7,7 @@ import {
   LayoutDashboard, User, FolderKanban, Zap, Briefcase, GraduationCap,
   Clock, BarChart3, Cog, MessageCircle, Image as ImageIcon, Settings,
   ChevronLeft, ChevronRight, LogOut, Menu, X, Activity, FileDown,
+  FileText, Combine,
 } from 'lucide-react';
 import { isAuthenticated, clearTokens, api } from '@/lib/api-client';
 
@@ -24,6 +25,8 @@ const sidebarItems = [
   { label: 'Media', href: '/admin/media', icon: ImageIcon },
   { label: 'Analitik', href: '/admin/analytics', icon: Activity },
   { label: 'Export CV', href: '/admin/export', icon: FileDown },
+  { label: 'Surat Lamaran', href: '/admin/surat-lamaran', icon: FileText },
+  { label: 'Gabung Dokumen', href: '/admin/document-merger', icon: Combine },
   { label: 'Pengaturan', href: '/admin/settings', icon: Settings },
 ];
 
