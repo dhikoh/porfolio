@@ -50,7 +50,7 @@ export default function HomeClient({
       <SplashScreen />
       <Navbar fullName={profile.fullName} />
       <main>
-        <HeroSection profile={profile} />
+        <HeroSection profile={profile} stats={stats} />
         {stats.length > 0 && <TrustSection stats={stats} />}
         <AboutSection profile={profile} settings={settings} />
         {timeline.length > 0 && <TimelineSection timeline={timeline} settings={settings} />}

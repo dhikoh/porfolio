@@ -1,6 +1,6 @@
 'use client';
 
-import { ArrowRight } from 'lucide-react';
+import { ArrowRight, TrendingUp, Zap } from 'lucide-react';
 import { motion } from 'framer-motion';
 import Image from 'next/image';
 import { toDirectImageUrl } from '@/lib/image-utils';
@@ -8,6 +8,7 @@ import { toDirectImageUrl } from '@/lib/image-utils';
 interface HeroSectionProps {
   profile: {
     fullName: string;
+    tagline: string;
     heroTitle: string;
     heroSubtitle: string;
     availableText: string;
@@ -16,9 +17,12 @@ interface HeroSectionProps {
     resumeUrl: string;
     avatarUrl: string;
   };
+  stats?: { id: string; label: string; value: string; icon: string }[];
 }
 
-export default function HeroSection({ profile }: HeroSectionProps) {
+export default function HeroSection({ profile, stats = [] }: HeroSectionProps) {
+  const firstStat = stats[0];
+
   return (
     <section className="relative min-h-screen flex items-center pt-16 overflow-hidden bg-[#002329]">
       {/* Dot pattern overlay */}
@@ -83,7 +87,7 @@ export default function HeroSection({ profile }: HeroSectionProps) {
             </motion.div>
           </div>
 
-          {/* Right - Avatar card */}
+          {/* Right - Avatar card with floating badges */}
           <motion.div
             className="relative flex-shrink-0"
             initial={{ opacity: 0, x: 30 }}
@@ -99,11 +103,43 @@ export default function HeroSection({ profile }: HeroSectionProps) {
                 </div>
               )}
             </div>
-            {/* Floating badge */}
-            <div className="absolute -bottom-4 -left-4 md:-left-12 px-5 py-3 rounded-2xl bg-white shadow-xl border border-gray-100">
-              <p className="text-sm font-bold text-[#002329]">🚀 Digital Builder</p>
-              <p className="text-xs text-gray-500">{profile.fullName}</p>
-            </div>
+
+            {/* Floating badge TOP - Stats (Upreach style: dark bg, green icon) */}
+            {firstStat && (
+              <motion.div
+                className="absolute top-8 -left-6 md:-left-16 px-5 py-3.5 rounded-2xl bg-[#003038]/90 backdrop-blur-xl border border-white/10 shadow-2xl"
+                initial={{ opacity: 0, x: -20 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ duration: 0.6, delay: 0.8 }}
+              >
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-[#5cf28e]/20 flex items-center justify-center">
+                    <TrendingUp className="w-5 h-5 text-[#5cf28e]" />
+                  </div>
+                  <div>
+                    <p className="text-white font-bold text-sm">{firstStat.value} {firstStat.label}</p>
+                  </div>
+                </div>
+              </motion.div>
+            )}
+
+            {/* Floating badge BOTTOM - Tagline (Upreach style: dark bg, green icon) */}
+            <motion.div
+              className="absolute -bottom-4 -left-6 md:-left-16 px-5 py-3.5 rounded-2xl bg-[#003038]/90 backdrop-blur-xl border border-white/10 shadow-2xl"
+              initial={{ opacity: 0, x: -20 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ duration: 0.6, delay: 1.0 }}
+            >
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-[#5cf28e]/20 flex items-center justify-center">
+                  <Zap className="w-5 h-5 text-[#5cf28e]" />
+                </div>
+                <div>
+                  <p className="text-white font-bold text-sm">{profile.tagline || 'Digital Builder'}</p>
+                  <p className="text-white/50 text-xs">{profile.fullName}</p>
+                </div>
+              </div>
+            </motion.div>
           </motion.div>
         </div>
       </div>
