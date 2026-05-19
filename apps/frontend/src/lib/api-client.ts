@@ -147,7 +147,9 @@ async function apiFetch<T>(
 }
 
 // ─── Server-side fetch (no auth, for SSR) ───
-const SSR_API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000/api';
+// INTERNAL_API_URL = Docker internal URL (e.g., http://backend-container:4000/api)
+// NEXT_PUBLIC_API_URL = Public URL for browser (e.g., https://apidhiko.muatin.id/api)
+const SSR_API_BASE = process.env.INTERNAL_API_URL || process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000/api';
 
 export async function serverFetch<T>(path: string): Promise<T> {
   const res = await fetch(`${SSR_API_BASE}${path}`, {
