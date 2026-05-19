@@ -50,14 +50,14 @@ export default function HomeClient({
       <SplashScreen />
       <Navbar fullName={profile.fullName} />
       <main>
-        <HeroSection profile={profile} stats={stats} />
+        <HeroSection profile={profile} stats={stats} settings={settings} />
         {stats.length > 0 && <TrustSection stats={stats} />}
         <AboutSection profile={profile} settings={settings} />
         {timeline.length > 0 && <TimelineSection timeline={timeline} settings={settings} />}
         {expertiseSkills.length > 0 && <ExpertiseSection skills={expertiseSkills} settings={settings} />}
         {skills.filter((s: any) => s.category === 'technical').length > 0 && <SkillsBarSection skills={skills} settings={settings} />}
         <ResumeSection experiences={experiences} education={education} settings={settings} />
-        {projects.length > 0 && <WorkSection projects={projects} />}
+        {projects.length > 0 && <WorkSection projects={projects} settings={settings} />}
         {processSteps.length > 0 && <ProcessSection steps={processSteps} settings={settings} />}
         <ContactSection profile={profile} settings={settings} />
       </main>

@@ -7,7 +7,7 @@ import { toDirectImageUrl } from '@/lib/image-utils';
 
 interface ProjectItem { id: string; title: string; slug: string; description: string; domain: string; liveUrl: string; imageUrl: string; videoUrl: string; tags: string; }
 
-export default function WorkSection({ projects }: { projects: ProjectItem[] }) {
+export default function WorkSection({ projects, settings }: { projects: ProjectItem[]; settings?: Record<string, string> }) {
   const ref = useRef(null);
   const isInView = useInView(ref, { once: true, margin: '-100px' });
 
@@ -17,8 +17,12 @@ export default function WorkSection({ projects }: { projects: ProjectItem[] }) {
       <div className="max-w-[1200px] mx-auto px-6 md:px-12 relative z-10">
         <motion.div className="flex flex-col md:flex-row md:items-end justify-between mb-16 md:mb-20 gap-6" initial={{ opacity: 0, y: 30 }} animate={isInView ? { opacity: 1, y: 0 } : {}} transition={{ duration: 0.8 }}>
           <div className="max-w-2xl">
-            <h2 className="text-3xl sm:text-4xl md:text-[44px] font-bold text-white tracking-tight mb-6" style={{ fontFamily: 'Satoshi, sans-serif', lineHeight: '1.2em' }}>Karya Digital.</h2>
-            <p className="text-white/60 text-base sm:text-lg leading-relaxed">Produk digital yang dibangun untuk memecahkan masalah nyata — dari logistik, edukasi, hingga manajemen peternakan.</p>
+            <h2 className="text-3xl sm:text-4xl md:text-[44px] font-bold text-white tracking-tight mb-6" style={{ fontFamily: 'Satoshi, sans-serif', lineHeight: '1.2em' }}>
+              {settings?.section_work_title || 'Karya Digital.'}
+            </h2>
+            <p className="text-white/60 text-base sm:text-lg leading-relaxed">
+              {settings?.section_work_subtitle || 'Produk digital yang dibangun untuk memecahkan masalah nyata — dari logistik, edukasi, hingga manajemen peternakan.'}
+            </p>
           </div>
         </motion.div>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
@@ -50,7 +54,7 @@ export default function WorkSection({ projects }: { projects: ProjectItem[] }) {
                   {project.domain && <p className="text-sm text-white/40 mb-3 font-mono">{project.domain}</p>}
                   <p className="text-white/60 text-sm leading-relaxed mb-4">{project.description}</p>
                   <a href={`/project/${project.slug}`} className="inline-flex items-center gap-2 text-sm text-[#5cf28e] font-medium hover:gap-3 transition-all">
-                    Lihat Detail <ChevronRight className="w-4 h-4" />
+                    {settings?.work_detail_label || 'Lihat Detail'} <ChevronRight className="w-4 h-4" />
                   </a>
                 </div>
               </motion.div>
