@@ -12,6 +12,7 @@ WORKDIR /app
 ENV NODE_ENV=production
 COPY --from=builder /app/dist ./dist
 COPY --from=builder /app/package.json ./
+COPY --from=builder /app/docker-seed.js ./
 RUN npm install --omit=dev
 RUN mkdir -p /app/uploads/images /app/uploads/videos /app/uploads/documents
 EXPOSE 4000
