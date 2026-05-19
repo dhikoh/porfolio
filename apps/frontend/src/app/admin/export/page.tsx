@@ -5,16 +5,40 @@ import { getAccessToken } from '@/lib/api-client';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000/api';
 
+/**
+ * Raw fetch with token — used instead of apiFetch because
+ * we need raw Response (text/html), not parsed JSON.
+ * Includes manual token-refresh retry on 401.
+ */
+async function authedFetch(url: string): Promise<Response> {
+  const token = getAccessToken();
+  const res = await fetch(url, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+
+  if (res.status === 401) {
+    // Try refreshing token
+    const { tryRefreshToken } = await import('@/lib/api-client');
+    const ok = await tryRefreshToken();
+    if (ok) {
+      const newToken = getAccessToken();
+      return fetch(url, {
+        headers: { Authorization: `Bearer ${newToken}` },
+      });
+    }
+    throw new Error('Sesi telah berakhir, silakan login ulang');
+  }
+
+  return res;
+}
+
 export default function AdminExportPage() {
   const [loading, setLoading] = useState(false);
 
   const handleExport = async () => {
     setLoading(true);
     try {
-      const token = getAccessToken();
-      const res = await fetch(`${API_URL}/export/cv`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      const res = await authedFetch(`${API_URL}/export/cv`);
       if (!res.ok) throw new Error('Gagal mengexport');
       const html = await res.text();
       const blob = new Blob([html], { type: 'text/html' });
@@ -34,14 +58,15 @@ export default function AdminExportPage() {
   };
 
   const handlePreview = async () => {
-    const token = getAccessToken();
-    const res = await fetch(`${API_URL}/export/cv`, {
-      headers: { Authorization: `Bearer ${token}` },
-    });
-    if (!res.ok) return;
-    const html = await res.text();
-    const w = window.open('', '_blank');
-    if (w) { w.document.write(html); w.document.close(); }
+    try {
+      const res = await authedFetch(`${API_URL}/export/cv`);
+      if (!res.ok) throw new Error('Gagal preview');
+      const html = await res.text();
+      const w = window.open('', '_blank');
+      if (w) { w.document.write(html); w.document.close(); }
+    } catch (err) {
+      alert('Gagal preview: ' + (err instanceof Error ? err.message : 'Unknown'));
+    }
   };
 
   return (

@@ -99,6 +99,9 @@ async function tryRefresh(): Promise<boolean> {
   return refreshPromise;
 }
 
+// Export for components that use raw fetch (not apiFetch) but still need refresh
+export const tryRefreshToken = tryRefresh;
+
 // ─── Core fetch wrapper ───
 async function apiFetch<T>(
   path: string,
