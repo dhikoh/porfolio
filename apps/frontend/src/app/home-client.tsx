@@ -33,11 +33,11 @@ export default function HomeClient({
 }: HomeClientProps) {
   if (!profile) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-[#09090b]">
+      <div className="min-h-screen flex items-center justify-center bg-[#002329]">
         <div className="text-center">
           <div className="text-6xl mb-4">🚧</div>
           <h1 className="text-2xl font-semibold text-white mb-2">Portfolio sedang disiapkan</h1>
-          <p className="text-zinc-400">Backend API belum tersedia atau sedang memproses data.</p>
+          <p className="text-white/50">Backend API belum tersedia atau sedang memproses data.</p>
         </div>
       </div>
     );

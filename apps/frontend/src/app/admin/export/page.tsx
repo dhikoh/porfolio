@@ -1,6 +1,6 @@
 'use client';
 import { useState } from 'react';
-import { FileDown, ExternalLink } from 'lucide-react';
+import { FileDown, ExternalLink, FileText } from 'lucide-react';
 import { getAccessToken } from '@/lib/api-client';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000/api';
@@ -34,6 +34,7 @@ async function authedFetch(url: string): Promise<Response> {
 
 export default function AdminExportPage() {
   const [loading, setLoading] = useState(false);
+  const [format, setFormat] = useState<'html' | 'pdf'>('pdf');
 
   const handleExport = async () => {
     setLoading(true);
@@ -41,15 +42,28 @@ export default function AdminExportPage() {
       const res = await authedFetch(`${API_URL}/export/cv`);
       if (!res.ok) throw new Error('Gagal mengexport');
       const html = await res.text();
-      const blob = new Blob([html], { type: 'text/html' });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      const disposition = res.headers.get('Content-Disposition') || '';
-      const match = disposition.match(/filename="?(.+?)"?$/);
-      a.download = match?.[1] || 'CV-Portfolio.html';
-      a.click();
-      URL.revokeObjectURL(url);
+
+      if (format === 'pdf') {
+        // Open preview and trigger print dialog for PDF save
+        const w = window.open('', '_blank');
+        if (w) {
+          w.document.write(html);
+          w.document.close();
+          // Wait for content to render, then trigger print
+          setTimeout(() => w.print(), 800);
+        }
+      } else {
+        // Download as HTML
+        const blob = new Blob([html], { type: 'text/html' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        const disposition = res.headers.get('Content-Disposition') || '';
+        const match = disposition.match(/filename="?(.+?)"?$/);
+        a.download = match?.[1] || 'CV-Portfolio.html';
+        a.click();
+        URL.revokeObjectURL(url);
+      }
     } catch (err) {
       alert('Gagal mengexport: ' + (err instanceof Error ? err.message : 'Unknown'));
     } finally {
@@ -72,7 +86,31 @@ export default function AdminExportPage() {
   return (
     <div className="space-y-6 max-w-2xl">
       <h2 className="text-xl font-semibold text-white">Export CV / Resume</h2>
-      <p className="text-zinc-400 text-sm">Generate CV profesional dari data portfolio Anda. File HTML yang dihasilkan bisa langsung dicetak sebagai PDF melalui browser (Ctrl+P).</p>
+      <p className="text-zinc-400 text-sm">Generate CV profesional dari data portfolio Anda. Pilih format download di bawah.</p>
+
+      {/* Format selector */}
+      <div className="flex gap-3">
+        <button
+          onClick={() => setFormat('pdf')}
+          className={`flex items-center gap-2 px-5 py-2.5 rounded-full text-sm font-medium transition-all ${
+            format === 'pdf'
+              ? 'bg-emerald-500 text-white shadow-lg'
+              : 'bg-zinc-800 text-zinc-400 hover:bg-zinc-700'
+          }`}
+        >
+          <FileText className="w-4 h-4" /> PDF
+        </button>
+        <button
+          onClick={() => setFormat('html')}
+          className={`flex items-center gap-2 px-5 py-2.5 rounded-full text-sm font-medium transition-all ${
+            format === 'html'
+              ? 'bg-emerald-500 text-white shadow-lg'
+              : 'bg-zinc-800 text-zinc-400 hover:bg-zinc-700'
+          }`}
+        >
+          <FileDown className="w-4 h-4" /> HTML
+        </button>
+      </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <button onClick={handlePreview} className="p-6 rounded-2xl bg-zinc-900/50 border border-white/5 hover:border-white/10 transition-colors text-left">
@@ -83,13 +121,21 @@ export default function AdminExportPage() {
 
         <button onClick={handleExport} disabled={loading} className="p-6 rounded-2xl bg-zinc-900/50 border border-white/5 hover:border-white/10 transition-colors text-left disabled:opacity-50">
           <FileDown className="w-6 h-6 text-emerald-400 mb-3" />
-          <h3 className="text-white font-medium mb-1">{loading ? 'Generating...' : 'Download CV'}</h3>
-          <p className="text-zinc-500 text-xs">Download sebagai HTML, lalu print ke PDF</p>
+          <h3 className="text-white font-medium mb-1">{loading ? 'Generating...' : `Download ${format.toUpperCase()}`}</h3>
+          <p className="text-zinc-500 text-xs">
+            {format === 'pdf' ? 'Buka preview → simpan sebagai PDF' : 'Download sebagai file HTML'}
+          </p>
         </button>
       </div>
 
       <div className="p-4 rounded-xl bg-zinc-900/30 border border-white/5">
-        <p className="text-zinc-500 text-xs">💡 Tip: Buka file HTML yang didownload di browser, lalu tekan <kbd className="px-1.5 py-0.5 bg-zinc-800 rounded text-zinc-300">Ctrl+P</kbd> untuk mencetak sebagai PDF dengan layout profesional.</p>
+        <p className="text-zinc-500 text-xs">
+          {format === 'pdf' ? (
+            <>💡 Tip: Setelah dialog print muncul, pilih <strong className="text-zinc-300">&quot;Save as PDF&quot;</strong> sebagai printer untuk menyimpan file PDF.</>
+          ) : (
+            <>💡 Tip: Buka file HTML yang didownload di browser, lalu tekan <kbd className="px-1.5 py-0.5 bg-zinc-800 rounded text-zinc-300">Ctrl+P</kbd> untuk mencetak sebagai PDF.</>
+          )}
+        </p>
       </div>
     </div>
   );
