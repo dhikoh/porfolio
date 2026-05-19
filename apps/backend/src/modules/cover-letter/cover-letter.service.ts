@@ -1,6 +1,8 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
+import * as fs from 'fs';
+import * as path from 'path';
 import { CoverLetter } from '../../entities/cover-letter.entity';
 import { CreateCoverLetterDto } from './dto/cover-letter.dto';
 import { generateCoverLetterPdf } from './generators/pdf.generator';
@@ -35,6 +37,13 @@ export class CoverLetterService {
 
   async remove(id: string): Promise<void> {
     const letter = await this.findById(id);
+    // Clean up signature file (no orphan)
+    if (letter.signatureUrl) {
+      const sigPath = path.join(process.cwd(), letter.signatureUrl);
+      if (fs.existsSync(sigPath)) {
+        fs.unlinkSync(sigPath);
+      }
+    }
     await this.repo.remove(letter);
   }
 

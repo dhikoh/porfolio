@@ -115,7 +115,7 @@ export default function SuratLamaranPage() {
     setSaving(true);
     setMessage('');
     try {
-      const saved = await api.createCoverLetter(form as unknown as Record<string, unknown>);
+      await api.createCoverLetter(form as unknown as Record<string, unknown>);
       setMessage('Surat berhasil disimpan! Silakan download.');
       setTab('history');
       await loadHistory();

@@ -27,22 +27,35 @@ const signatureStorage = diskStorage({
 export class CoverLetterController {
   constructor(private readonly service: CoverLetterService) {}
 
+  // ─── Static routes FIRST (before :id param routes) ───
+
   @Get()
   @ApiOperation({ summary: 'List all saved cover letters' })
   async findAll() {
     return this.service.findAll();
   }
 
-  @Get(':id')
-  @ApiOperation({ summary: 'Get single cover letter data' })
-  async findOne(@Param('id') id: string) {
-    return this.service.findById(id);
-  }
-
   @Post()
   @ApiOperation({ summary: 'Create and save cover letter' })
   async create(@Body() dto: CreateCoverLetterDto) {
     return this.service.create(dto);
+  }
+
+  @Post('upload-signature')
+  @UseInterceptors(FileInterceptor('file', { storage: signatureStorage }))
+  @ApiConsumes('multipart/form-data')
+  @ApiOperation({ summary: 'Upload signature image' })
+  @HttpCode(HttpStatus.OK)
+  async uploadSignature(@UploadedFile() file: Express.Multer.File) {
+    return { signatureUrl: `uploads/signatures/${file.filename}` };
+  }
+
+  // ─── Parameterized routes AFTER static routes ───
+
+  @Get(':id')
+  @ApiOperation({ summary: 'Get single cover letter data' })
+  async findOne(@Param('id') id: string) {
+    return this.service.findById(id);
   }
 
   @Delete(':id')
@@ -67,14 +80,5 @@ export class CoverLetterController {
       'Content-Length': buffer.length.toString(),
     });
     res.send(buffer);
-  }
-
-  @Post('upload-signature')
-  @UseInterceptors(FileInterceptor('file', { storage: signatureStorage }))
-  @ApiConsumes('multipart/form-data')
-  @ApiOperation({ summary: 'Upload signature image' })
-  @HttpCode(HttpStatus.OK)
-  async uploadSignature(@UploadedFile() file: Express.Multer.File) {
-    return { signatureUrl: `uploads/signatures/${file.filename}` };
   }
 }
