@@ -43,18 +43,32 @@ export class DocumentMergerController {
   @UseInterceptors(FilesInterceptor('files', 20, {
     storage: memoryStorage(),
     fileFilter: mergerFileFilter,
-    limits: { fileSize: 200 * 1024 * 1024 }, // 200MB max per file
+    limits: { fileSize: 100 * 1024 * 1024 }, // 100MB max per file
   }))
   @ApiConsumes('multipart/form-data')
-  @ApiOperation({ summary: 'Upload files and merge into single PDF' })
+  @ApiOperation({ summary: 'Upload files and merge into single PDF (with optional watermark)' })
   async merge(
     @UploadedFiles() files: Express.Multer.File[],
     @Body('title') title?: string,
+    @Body('watermarkText') watermarkText?: string,
   ) {
     if (!files || files.length < 2) {
       throw new BadRequestException('Minimal 2 file untuk digabungkan');
     }
-    return this.service.merge(files, title);
+    return this.service.merge(files, title, watermarkText);
+  }
+
+  @Post(':id/compress')
+  @SkipThrottle()
+  @ApiOperation({ summary: 'Compress an existing merged PDF' })
+  async compress(
+    @Param('id') id: string,
+    @Body('quality') quality: number,
+    @Body('targetSizeMB') targetSizeMB?: number,
+  ) {
+    const q = Number(quality) || 50;
+    const target = targetSizeMB ? Number(targetSizeMB) : undefined;
+    return this.service.compress(id, q, target);
   }
 
   @Get(':id/download')

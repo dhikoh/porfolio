@@ -1,10 +1,11 @@
 import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { PDFDocument } from 'pdf-lib';
+import { PDFDocument, rgb, StandardFonts } from 'pdf-lib';
 import * as fs from 'fs';
 import * as path from 'path';
 import * as crypto from 'crypto';
+import { execSync } from 'child_process';
 import { MergedDocument } from '../../entities/merged-document.entity';
 
 const MERGED_DIR = path.join(process.cwd(), 'uploads', 'merged');
@@ -14,7 +15,6 @@ export class DocumentMergerService {
   constructor(
     @InjectRepository(MergedDocument) private readonly repo: Repository<MergedDocument>,
   ) {
-    // Ensure directory exists
     if (!fs.existsSync(MERGED_DIR)) {
       fs.mkdirSync(MERGED_DIR, { recursive: true });
     }
@@ -42,7 +42,11 @@ export class DocumentMergerService {
     };
   }
 
-  async merge(files: Express.Multer.File[], title?: string): Promise<MergedDocument> {
+  async merge(
+    files: Express.Multer.File[],
+    title?: string,
+    watermarkText?: string,
+  ): Promise<MergedDocument> {
     if (!files || files.length < 2) {
       throw new BadRequestException('Minimal 2 file untuk digabungkan');
     }
@@ -55,12 +59,10 @@ export class DocumentMergerService {
       sourceNames.push(file.originalname);
 
       if (ext === '.pdf') {
-        // Direct PDF merge
         const pdfDoc = await PDFDocument.load(file.buffer);
         const pages = await mergedPdf.copyPages(pdfDoc, pdfDoc.getPageIndices());
         pages.forEach(page => mergedPdf.addPage(page));
       } else if (['.jpg', '.jpeg', '.png'].includes(ext)) {
-        // Image → PDF page
         const page = mergedPdf.addPage([595.28, 841.89]); // A4
         let image;
         if (ext === '.png') {
@@ -68,7 +70,6 @@ export class DocumentMergerService {
         } else {
           image = await mergedPdf.embedJpg(file.buffer);
         }
-        // Fit image to page with margins
         const margin = 40;
         const maxW = page.getWidth() - margin * 2;
         const maxH = page.getHeight() - margin * 2;
@@ -82,9 +83,13 @@ export class DocumentMergerService {
           height: h,
         });
       } else {
-        // Unsupported format — skip with warning
         console.warn(`Skipping unsupported file: ${file.originalname} (${ext})`);
       }
+    }
+
+    // Apply watermark to all pages if provided
+    if (watermarkText && watermarkText.trim()) {
+      await this.applyWatermark(mergedPdf, watermarkText.trim());
     }
 
     const pdfBytes = await mergedPdf.save();
@@ -106,9 +111,125 @@ export class DocumentMergerService {
     return this.repo.save(record);
   }
 
+  /**
+   * Apply footer watermark text to every page
+   */
+  private async applyWatermark(pdf: PDFDocument, text: string): Promise<void> {
+    const font = await pdf.embedFont(StandardFonts.Helvetica);
+    const fontSize = 8;
+    const color = rgb(0.6, 0.6, 0.6); // light gray
+    const pages = pdf.getPages();
+
+    for (const page of pages) {
+      const { width } = page.getSize();
+      const textWidth = font.widthOfTextAtSize(text, fontSize);
+      const x = (width - textWidth) / 2; // center
+      const y = 20; // 20pt from bottom
+
+      page.drawText(text, {
+        x,
+        y,
+        size: fontSize,
+        font,
+        color,
+      });
+    }
+  }
+
+  /**
+   * Compress an existing merged PDF using Ghostscript
+   * @param quality 1-100 percentage (lower = smaller file, lower quality)
+   * @param targetSizeMB optional target file size in MB
+   */
+  async compress(
+    id: string,
+    quality: number,
+    targetSizeMB?: number,
+  ): Promise<{ originalSize: number; compressedSize: number; reduction: string }> {
+    const doc = await this.findById(id);
+    const inputPath = path.join(process.cwd(), doc.outputPath);
+
+    if (!fs.existsSync(inputPath)) {
+      throw new NotFoundException('File sumber tidak ditemukan');
+    }
+
+    const originalSize = fs.statSync(inputPath).size;
+
+    // Map quality percentage to Ghostscript DPI
+    const clampedQuality = Math.max(10, Math.min(100, quality));
+    const dpi = Math.round((clampedQuality / 100) * 300); // 10% = 30dpi, 100% = 300dpi
+    const preset = this.getGsPreset(clampedQuality);
+
+    // Ghostscript compress
+    const tempOutput = inputPath.replace('.pdf', `_compressed_${Date.now()}.pdf`);
+
+    try {
+      const gsCmd = [
+        'gs',
+        '-sDEVICE=pdfwrite',
+        '-dCompatibilityLevel=1.4',
+        `-dPDFSETTINGS=${preset}`,
+        `-dDownsampleColorImages=true`,
+        `-dColorImageResolution=${dpi}`,
+        `-dDownsampleGrayImages=true`,
+        `-dGrayImageResolution=${dpi}`,
+        `-dDownsampleMonoImages=true`,
+        `-dMonoImageResolution=${dpi}`,
+        '-dNOPAUSE',
+        '-dBATCH',
+        '-dQUIET',
+        `-sOutputFile=${tempOutput}`,
+        inputPath,
+      ].join(' ');
+
+      execSync(gsCmd, { timeout: 120000 }); // 2 min timeout
+
+      const compressedSize = fs.statSync(tempOutput).size;
+      const targetBytes = targetSizeMB ? targetSizeMB * 1024 * 1024 : 0;
+
+      // If target set and still too large, try more aggressive compression
+      if (targetBytes > 0 && compressedSize > targetBytes && clampedQuality > 20) {
+        fs.unlinkSync(tempOutput);
+        // Recursive call with lower quality
+        const lowerQuality = Math.max(10, Math.round(clampedQuality * 0.6));
+        return this.compress(id, lowerQuality, targetSizeMB);
+      }
+
+      // Replace original with compressed
+      fs.unlinkSync(inputPath);
+      fs.renameSync(tempOutput, inputPath);
+
+      // Update record
+      doc.fileSize = compressedSize;
+      await this.repo.save(doc);
+
+      const reduction = (((originalSize - compressedSize) / originalSize) * 100).toFixed(1);
+      return {
+        originalSize,
+        compressedSize,
+        reduction: `${reduction}%`,
+      };
+    } catch (err) {
+      // Clean up temp file on error
+      if (fs.existsSync(tempOutput)) fs.unlinkSync(tempOutput);
+      throw new BadRequestException(
+        'Gagal mengompresi PDF. Pastikan Ghostscript terinstal di server.',
+      );
+    }
+  }
+
+  /**
+   * Map quality percentage to Ghostscript preset
+   */
+  private getGsPreset(quality: number): string {
+    if (quality <= 25) return '/screen';      // 72dpi — smallest
+    if (quality <= 50) return '/ebook';       // 150dpi — medium
+    if (quality <= 75) return '/printer';     // 300dpi — good
+    return '/prepress';                        // 300dpi+ — best
+  }
+
   async remove(id: string): Promise<void> {
     const doc = await this.findById(id);
-    // Delete file from disk (no orphan)
     const filePath = path.join(process.cwd(), doc.outputPath);
     if (fs.existsSync(filePath)) {
       fs.unlinkSync(filePath);

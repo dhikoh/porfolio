@@ -16,9 +16,9 @@ async function bootstrap() {
   // Global prefix
   app.setGlobalPrefix('api');
 
-  // Body parser limits (200MB) for large file uploads
-  app.use(json({ limit: '200mb' }));
-  app.use(urlencoded({ extended: true, limit: '200mb' }));
+  // Body parser limits (100MB) for large file uploads
+  app.use(json({ limit: '100mb' }));
+  app.use(urlencoded({ extended: true, limit: '100mb' }));
 
   // CORS
   app.enableCors({

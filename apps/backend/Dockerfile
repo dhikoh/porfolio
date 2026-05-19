@@ -7,7 +7,7 @@ COPY . .
 RUN npx nest build
 
 FROM node:22-alpine AS runner
-RUN apk add --no-cache python3 make g++
+RUN apk add --no-cache python3 make g++ ghostscript
 WORKDIR /app
 ENV NODE_ENV=production
 COPY --from=builder /app/dist ./dist

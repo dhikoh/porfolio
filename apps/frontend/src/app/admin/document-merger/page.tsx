@@ -1,10 +1,11 @@
 'use client';
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { Combine, Upload, Trash2, Download, Loader2, FileText, Image as ImageIcon, File, GripVertical, X, AlertCircle, CheckCircle2 } from 'lucide-react';
+import { Combine, Upload, Trash2, Download, Loader2, FileText, Image as ImageIcon, File, GripVertical, X, AlertCircle, CheckCircle2, Shrink, Stamp } from 'lucide-react';
 import { api } from '@/lib/api-client';
 
 const ACCEPTED_TYPES = '.pdf,.jpg,.jpeg,.png';
-const MAX_FILE_SIZE = 50 * 1024 * 1024; // 50MB per file
+const MAX_FILE_SIZE = 100 * 1024 * 1024; // 100MB per file
+const ALLOWED_MIMES = ['application/pdf', 'image/jpeg', 'image/png'];
 
 const FILE_ICONS: Record<string, typeof FileText> = {
   'application/pdf': FileText,
@@ -12,11 +13,10 @@ const FILE_ICONS: Record<string, typeof FileText> = {
   'image/png': ImageIcon,
 };
 
-const ALLOWED_MIMES = ['application/pdf', 'image/jpeg', 'image/png'];
-
 export default function DocumentMergerPage() {
   const [files, setFiles] = useState<File[]>([]);
   const [title, setTitle] = useState('');
+  const [watermarkText, setWatermarkText] = useState('');
   const [history, setHistory] = useState<Record<string, unknown>[]>([]);
   const [loading, setLoading] = useState(false);
   const [merging, setMerging] = useState(false);
@@ -25,6 +25,13 @@ export default function DocumentMergerPage() {
   const [dragOver, setDragOver] = useState(false);
   const [dragIdx, setDragIdx] = useState<number | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
+
+  // Compression modal state
+  const [compressId, setCompressId] = useState<string | null>(null);
+  const [compressQuality, setCompressQuality] = useState(50);
+  const [compressTarget, setCompressTarget] = useState('');
+  const [compressing, setCompressing] = useState(false);
+  const [compressResult, setCompressResult] = useState<{ originalSize: number; compressedSize: number; reduction: string } | null>(null);
 
   useEffect(() => { loadHistory(); }, []);
 
@@ -41,12 +48,8 @@ export default function DocumentMergerPage() {
   };
 
   const validateFile = (file: File): string | null => {
-    if (!ALLOWED_MIMES.includes(file.type)) {
-      return `"${file.name}" — tipe tidak didukung. Hanya PDF, JPG, PNG.`;
-    }
-    if (file.size > MAX_FILE_SIZE) {
-      return `"${file.name}" — ukuran melebihi 50MB.`;
-    }
+    if (!ALLOWED_MIMES.includes(file.type)) return `"${file.name}" — tipe tidak didukung.`;
+    if (file.size > MAX_FILE_SIZE) return `"${file.name}" — ukuran melebihi 100MB.`;
     return null;
   };
 
@@ -75,7 +78,6 @@ export default function DocumentMergerPage() {
 
   const removeFile = (idx: number) => setFiles(prev => prev.filter((_, i) => i !== idx));
 
-  // Drag reorder
   const handleDragStart = (idx: number) => setDragIdx(idx);
   const handleDragOver = (e: React.DragEvent, idx: number) => {
     e.preventDefault();
@@ -91,39 +93,46 @@ export default function DocumentMergerPage() {
   const handleDragEnd = () => setDragIdx(null);
 
   const handleMerge = async () => {
-    if (files.length < 2) {
-      showMessage('Minimal 2 file untuk digabungkan', 'error');
-      return;
-    }
+    if (files.length < 2) { showMessage('Minimal 2 file', 'error'); return; }
     setMerging(true);
     setMessage('');
     try {
-      await api.mergeDocuments(files, title || undefined);
+      await api.mergeDocuments(files, title || undefined, watermarkText || undefined);
       showMessage('Dokumen berhasil digabungkan!', 'success');
       setFiles([]);
       setTitle('');
       await loadHistory();
     } catch (err) {
-      showMessage(err instanceof Error ? err.message : 'Gagal menggabungkan dokumen', 'error');
+      showMessage(err instanceof Error ? err.message : 'Gagal menggabungkan', 'error');
     }
     setMerging(false);
   };
 
-  const handleDownload = async (id: string, docTitle: string) => {
+  const handleCompress = async () => {
+    if (!compressId) return;
+    setCompressing(true);
+    setCompressResult(null);
     try {
-      await api.downloadMergedDocument(id, docTitle);
+      const target = compressTarget ? parseFloat(compressTarget) : undefined;
+      const result = await api.compressMergedDocument(compressId, compressQuality, target);
+      setCompressResult(result);
+      showMessage(`Berhasil dikompres! Pengurangan: ${result.reduction}`, 'success');
+      await loadHistory();
     } catch (err) {
-      showMessage(err instanceof Error ? err.message : 'Gagal download', 'error');
+      showMessage(err instanceof Error ? err.message : 'Gagal mengompresi', 'error');
     }
+    setCompressing(false);
+  };
+
+  const handleDownload = async (id: string, docTitle: string) => {
+    try { await api.downloadMergedDocument(id, docTitle); }
+    catch (err) { showMessage(err instanceof Error ? err.message : 'Gagal download', 'error'); }
   };
 
   const handleDelete = async (id: string) => {
     if (!confirm('Hapus dokumen ini?')) return;
-    try {
-      await api.deleteMergedDocument(id);
-      await loadHistory();
-      showMessage('Dokumen berhasil dihapus', 'success');
-    } catch { /* ignore */ }
+    try { await api.deleteMergedDocument(id); await loadHistory(); showMessage('Dihapus', 'success'); }
+    catch { /* ignore */ }
   };
 
   const formatSize = (bytes: number) => {
@@ -134,12 +143,19 @@ export default function DocumentMergerPage() {
 
   const totalSize = files.reduce((sum, f) => sum + f.size, 0);
 
+  const qualityLabel = (q: number) => {
+    if (q <= 25) return 'Rendah (layar)';
+    if (q <= 50) return 'Sedang (ebook)';
+    if (q <= 75) return 'Baik (cetak)';
+    return 'Tinggi (profesional)';
+  };
+
   return (
     <div>
       <div className="flex items-center justify-between mb-6">
         <div>
           <h1 className="text-2xl font-semibold text-white">Gabung Dokumen</h1>
-          <p className="text-zinc-500 text-sm mt-1">Gabungkan beberapa file menjadi 1 PDF</p>
+          <p className="text-zinc-500 text-sm mt-1">Gabungkan file menjadi 1 PDF · watermark · kompresi</p>
         </div>
       </div>
 
@@ -152,9 +168,17 @@ export default function DocumentMergerPage() {
 
       {/* Upload Area */}
       <div className="bg-zinc-900/50 border border-white/5 rounded-2xl p-6 mb-6">
-        <div className="mb-4">
-          <label className="text-sm text-zinc-400 block mb-1.5">Judul Dokumen (opsional)</label>
-          <input value={title} onChange={e => setTitle(e.target.value)} placeholder="e.g. Berkas Lamaran Kerja" className="w-full px-4 py-3 bg-zinc-900/50 border border-white/10 rounded-xl text-white text-sm placeholder:text-zinc-600 focus:outline-none focus:border-white/20" />
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+          <div>
+            <label className="text-sm text-zinc-400 block mb-1.5">Judul Dokumen (opsional)</label>
+            <input value={title} onChange={e => setTitle(e.target.value)} placeholder="e.g. Berkas Lamaran Kerja" className="w-full px-4 py-3 bg-zinc-900/50 border border-white/10 rounded-xl text-white text-sm placeholder:text-zinc-600 focus:outline-none focus:border-white/20" />
+          </div>
+          <div>
+            <label className="text-sm text-zinc-400 block mb-1.5">
+              <Stamp className="w-3.5 h-3.5 inline mr-1" />Watermark Footer (opsional)
+            </label>
+            <input value={watermarkText} onChange={e => setWatermarkText(e.target.value)} placeholder="e.g. Dokumen milik Dhiko Herlambang" className="w-full px-4 py-3 bg-zinc-900/50 border border-white/10 rounded-xl text-white text-sm placeholder:text-zinc-600 focus:outline-none focus:border-white/20" />
+          </div>
         </div>
 
         {/* Drop Zone */}
@@ -173,7 +197,7 @@ export default function DocumentMergerPage() {
             <span className="px-2 py-0.5 bg-blue-500/10 text-blue-400 text-xs rounded-md">JPG</span>
             <span className="px-2 py-0.5 bg-green-500/10 text-green-400 text-xs rounded-md">PNG</span>
           </div>
-          <p className="text-zinc-700 text-[10px] mt-2">Maks 50MB per file · Maks 20 file</p>
+          <p className="text-zinc-700 text-[10px] mt-2">Maks 100MB per file · Maks 20 file</p>
         </div>
         <input ref={fileRef} type="file" accept={ACCEPTED_TYPES} multiple onChange={handleFileSelect} className="hidden" />
 
@@ -182,64 +206,92 @@ export default function DocumentMergerPage() {
           <div className="mt-5">
             <div className="flex items-center justify-between mb-3">
               <p className="text-sm text-zinc-400">
-                <span className="text-white font-medium">{files.length}</span> file dipilih · <span className="text-white font-medium">{formatSize(totalSize)}</span> total
+                <span className="text-white font-medium">{files.length}</span> file · <span className="text-white font-medium">{formatSize(totalSize)}</span>
               </p>
-              <button onClick={() => setFiles([])} className="text-xs text-zinc-500 hover:text-red-400 transition-colors">
-                Hapus semua
-              </button>
+              <button onClick={() => setFiles([])} className="text-xs text-zinc-500 hover:text-red-400 transition-colors">Hapus semua</button>
             </div>
             <div className="space-y-1.5">
               {files.map((file, idx) => {
                 const Icon = FILE_ICONS[file.type] || File;
                 const ext = file.name.split('.').pop()?.toUpperCase() || '';
                 return (
-                  <div
-                    key={`${file.name}-${idx}-${file.size}`}
-                    draggable
-                    onDragStart={() => handleDragStart(idx)}
-                    onDragOver={e => handleDragOver(e, idx)}
-                    onDragEnd={handleDragEnd}
-                    className={`flex items-center gap-3 bg-zinc-800/40 hover:bg-zinc-800/60 rounded-xl px-4 py-2.5 transition-all cursor-grab active:cursor-grabbing ${dragIdx === idx ? 'opacity-40 scale-95' : ''}`}
-                  >
+                  <div key={`${file.name}-${idx}-${file.size}`} draggable onDragStart={() => handleDragStart(idx)} onDragOver={e => handleDragOver(e, idx)} onDragEnd={handleDragEnd}
+                    className={`flex items-center gap-3 bg-zinc-800/40 hover:bg-zinc-800/60 rounded-xl px-4 py-2.5 transition-all cursor-grab active:cursor-grabbing ${dragIdx === idx ? 'opacity-40 scale-95' : ''}`}>
                     <GripVertical className="w-4 h-4 text-zinc-700 flex-shrink-0" />
                     <span className="text-zinc-600 text-[10px] font-mono w-5 text-center">{idx + 1}</span>
                     <Icon className="w-4 h-4 text-zinc-400 flex-shrink-0" />
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm text-zinc-300 truncate">{file.name}</p>
-                    </div>
+                    <div className="flex-1 min-w-0"><p className="text-sm text-zinc-300 truncate">{file.name}</p></div>
                     <span className="text-[10px] text-zinc-600 px-1.5 py-0.5 bg-zinc-800 rounded">{ext}</span>
                     <span className="text-xs text-zinc-600 w-16 text-right">{formatSize(file.size)}</span>
-                    <button onClick={e => { e.stopPropagation(); removeFile(idx); }} className="text-zinc-600 hover:text-red-400 transition-colors p-1">
-                      <X className="w-3.5 h-3.5" />
-                    </button>
+                    <button onClick={e => { e.stopPropagation(); removeFile(idx); }} className="text-zinc-600 hover:text-red-400 transition-colors p-1"><X className="w-3.5 h-3.5" /></button>
                   </div>
                 );
               })}
             </div>
-
             {files.length < 2 && (
               <div className="mt-3 text-xs text-amber-400/80 flex items-center gap-1.5">
-                <AlertCircle className="w-3.5 h-3.5" />
-                Tambahkan minimal 1 file lagi untuk menggabungkan
+                <AlertCircle className="w-3.5 h-3.5" /> Tambahkan minimal 1 file lagi
               </div>
             )}
-
-            <button onClick={handleMerge} disabled={merging || files.length < 2} className="w-full flex items-center justify-center gap-2 px-6 py-3.5 bg-white text-zinc-950 rounded-xl text-sm font-semibold hover:bg-zinc-200 transition-colors disabled:opacity-40 disabled:cursor-not-allowed mt-4">
-              {merging ? (
-                <>
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                  Menggabungkan {files.length} file...
-                </>
-              ) : (
-                <>
-                  <Combine className="w-4 h-4" />
-                  Gabungkan {files.length} File → 1 PDF
-                </>
-              )}
+            <button onClick={handleMerge} disabled={merging || files.length < 2} className="w-full flex items-center justify-center gap-2 px-6 py-3.5 bg-white text-zinc-950 rounded-xl text-sm font-semibold hover:bg-zinc-200 transition-colors disabled:opacity-40 mt-4">
+              {merging ? <><Loader2 className="w-4 h-4 animate-spin" /> Menggabungkan...</> : <><Combine className="w-4 h-4" /> Gabungkan {files.length} File → 1 PDF</>}
             </button>
           </div>
         )}
       </div>
+
+      {/* Compression Modal */}
+      {compressId && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/60" onClick={() => { setCompressId(null); setCompressResult(null); }} />
+          <div className="relative bg-zinc-900 border border-white/10 rounded-2xl w-full max-w-md p-6">
+            <div className="flex items-center justify-between mb-5">
+              <h2 className="text-lg font-semibold text-white flex items-center gap-2"><Shrink className="w-5 h-5" /> Kompres PDF</h2>
+              <button onClick={() => { setCompressId(null); setCompressResult(null); }} className="text-zinc-500 hover:text-white"><X className="w-5 h-5" /></button>
+            </div>
+
+            <div className="space-y-5">
+              {/* Quality slider */}
+              <div>
+                <div className="flex items-center justify-between mb-2">
+                  <label className="text-sm text-zinc-400">Kualitas</label>
+                  <span className="text-xs text-white bg-zinc-800 px-2 py-0.5 rounded">{compressQuality}% — {qualityLabel(compressQuality)}</span>
+                </div>
+                <input type="range" min={10} max={100} step={5} value={compressQuality} onChange={e => setCompressQuality(Number(e.target.value))}
+                  className="w-full h-2 bg-zinc-800 rounded-lg appearance-none cursor-pointer accent-white" />
+                <div className="flex justify-between text-[10px] text-zinc-600 mt-1">
+                  <span>Kecil</span><span>Sedang</span><span>Besar</span>
+                </div>
+              </div>
+
+              {/* Target size */}
+              <div>
+                <label className="text-sm text-zinc-400 block mb-1.5">Target Ukuran (MB) — opsional</label>
+                <input type="number" min={0.5} step={0.5} value={compressTarget} onChange={e => setCompressTarget(e.target.value)} placeholder="e.g. 5"
+                  className="w-full px-4 py-3 bg-zinc-800/50 border border-white/10 rounded-xl text-white text-sm placeholder:text-zinc-600 focus:outline-none focus:border-white/20" />
+                <p className="text-[10px] text-zinc-600 mt-1">Kosongkan jika hanya ingin mengatur kualitas</p>
+              </div>
+
+              {/* Result */}
+              {compressResult && (
+                <div className="bg-emerald-500/10 border border-emerald-500/20 rounded-xl p-3 text-sm">
+                  <p className="text-emerald-400 font-medium">Berhasil dikompres!</p>
+                  <div className="flex gap-4 mt-1 text-xs text-emerald-400/80">
+                    <span>Sebelum: {formatSize(compressResult.originalSize)}</span>
+                    <span>→</span>
+                    <span>Sesudah: {formatSize(compressResult.compressedSize)}</span>
+                    <span className="text-emerald-300 font-medium">-{compressResult.reduction}</span>
+                  </div>
+                </div>
+              )}
+
+              <button onClick={handleCompress} disabled={compressing} className="w-full flex items-center justify-center gap-2 px-6 py-3 bg-white text-zinc-950 rounded-xl text-sm font-medium hover:bg-zinc-200 transition-colors disabled:opacity-50">
+                {compressing ? <><Loader2 className="w-4 h-4 animate-spin" /> Mengompresi...</> : <><Shrink className="w-4 h-4" /> Kompres Sekarang</>}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* History */}
       <div>
@@ -250,7 +302,6 @@ export default function DocumentMergerPage() {
           <div className="text-center py-16 text-zinc-600">
             <Combine className="w-14 h-14 mx-auto mb-4 opacity-20" />
             <p className="text-sm">Belum ada dokumen yang digabungkan</p>
-            <p className="text-xs mt-1 text-zinc-700">Upload file di atas untuk memulai</p>
           </div>
         ) : (
           <div className="space-y-3">
@@ -267,13 +318,16 @@ export default function DocumentMergerPage() {
                       <div className="flex items-center gap-2 mt-1 flex-wrap">
                         <span className="text-xs text-zinc-500">{sources.length} file</span>
                         <span className="text-zinc-700">·</span>
-                        <span className="text-xs text-zinc-500">{doc.pageCount as number} halaman</span>
+                        <span className="text-xs text-zinc-500">{doc.pageCount as number} hal</span>
                         <span className="text-zinc-700">·</span>
                         <span className="text-xs text-zinc-500">{formatSize(doc.fileSize as number)}</span>
                       </div>
                       <p className="text-zinc-700 text-[10px] mt-1">{new Date(doc.createdAt as string).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' })}</p>
                     </div>
-                    <div className="flex gap-2 flex-shrink-0">
+                    <div className="flex gap-2 flex-shrink-0 flex-wrap justify-end">
+                      <button onClick={() => { setCompressId(doc.id as string); setCompressResult(null); setCompressQuality(50); setCompressTarget(''); }} className="flex items-center gap-1.5 px-3 py-2 bg-purple-500/10 text-purple-400 hover:bg-purple-500/20 rounded-xl text-xs font-medium transition-colors" title="Kompres PDF">
+                        <Shrink className="w-3.5 h-3.5" /> Kompres
+                      </button>
                       <button onClick={() => handleDownload(doc.id as string, doc.title as string)} className="flex items-center gap-1.5 px-3 py-2 bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20 rounded-xl text-xs font-medium transition-colors">
                         <Download className="w-3.5 h-3.5" /> Download
                       </button>
