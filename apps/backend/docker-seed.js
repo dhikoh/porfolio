@@ -97,7 +97,7 @@ async function seed() {
   await profileRepo.save(profileRepo.create({
     fullName: 'Dhiko Herlambang',
     tagline: 'Problem Solver & Digital Systems Builder',
-    summary: 'Saya percaya bahwa solusi terbaik lahir dari memahami akar masalahnya terlebih dahulu — bukan dari teknologi paling canggih. Teknologi harus menyederhanakan, bukan memperumit.\n\nDengan latar belakang Ilmu Hukum dan 9 tahun pengalaman di industri pet supplies, saya belajar bahwa setiap masalah operasional punya pola yang bisa disederhanakan dengan sistem. Dari situ, saya mulai belajar coding secara otodidak dan membangun sendiri tools yang saya butuhkan.\n\nSaya bukan orang IT. Saya adalah orang bisnis yang belajar teknologi karena butuh — dan ternyata, justru di situlah kekuatannya. Saya memahami masalah dari sudut pandang pengguna dan pelaku usaha, bukan dari sudut pandang engineer.',
+    summary: 'Memiliki pengalaman dalam industri pet supplies dengan keahlian dalam internet marketing, desain konten, dan AI. Memiliki pemahaman yang kuat tentang demografi pelanggan, memungkinkan penjualan tanpa pertemuan langsung. Terampil dalam strategi digital dan pemasaran berbasis data untuk meningkatkan engagement dan penjualan.\n\nDengan latar belakang Ilmu Hukum dan 9 tahun pengalaman di industri pet supplies, saya belajar bahwa setiap masalah operasional punya pola yang bisa disederhanakan dengan sistem. Dari situ, saya mulai belajar coding secara otodidak dan membangun sendiri tools yang saya butuhkan.\n\nSaya bukan orang IT. Saya adalah orang bisnis yang belajar teknologi karena butuh — dan ternyata, justru di situlah kekuatannya. Saya memahami masalah dari sudut pandang pengguna dan pelaku usaha, bukan dari sudut pandang engineer.',
     phone: '082135444441',
     email: 'dhiko.h@gmail.com',
     address: 'Jl. Cr. Soekandar Gg.1 No.5, Sananwetan, Kota Blitar, Jawa Timur',
@@ -148,35 +148,77 @@ async function seed() {
   }
   console.log('✅ Skills created');
 
-  // 5. Experiences
+  // 5. Experiences (sesuai CV)
   const experiences = [
-    { title: 'Founder & Distributor', company: 'Bentocat (Pet Supplies)', location: 'Blitar, Jawa Timur', startDate: '2017-01', current: true, description: 'Membangun dan mengelola bisnis distribusi produk pasir kucing Bentocat selama lebih dari 9 tahun.', highlights: '["Membangun jaringan distribusi 9+ tahun","Mengembangkan strategi pemasaran digital","Membangun platform e-commerce bentocat.id"]', sortOrder: 1 },
-    { title: 'Digital Systems Builder', company: 'Freelance / Self-Taught', location: 'Blitar, Jawa Timur', startDate: '2020-01', current: true, description: 'Belajar coding secara otodidak dan membangun berbagai produk digital untuk menyelesaikan masalah nyata.', highlights: '["Membangun 7 produk digital secara otodidak","Adably - Platform edukasi Islami berbasis AI","Truck Modula - Platform logistik on-demand"]', sortOrder: 2 },
-    { title: 'Magang Notaris', company: 'Kantor Notaris', location: 'Solo, Jawa Tengah', startDate: '2016-06', endDate: '2017-06', current: false, description: 'Magang di kantor notaris setelah lulus kuliah S1 Ilmu Hukum.', highlights: '["Membantu proses administrasi legal","Mempelajari dokumentasi hukum"]', sortOrder: 3 },
+    {
+      title: 'Pengusaha Pasir Kucing & Supplier Petshop',
+      company: 'Bentocat / Usaha Mandiri',
+      location: 'Blitar, Jawa Timur',
+      startDate: '2017-01',
+      current: true,
+      description: 'Mengelola bisnis pasir kucing dan kebutuhan petshop sejak 2017. Menerapkan pendekatan demografi pelanggan untuk penjualan tanpa tatap muka.',
+      highlights: JSON.stringify([
+        'Mengelola bisnis pasir kucing dan kebutuhan petshop sejak 2017',
+        'Menerapkan pendekatan demografi pelanggan untuk penjualan tanpa tatap muka',
+        'Mengembangkan desain konten menggunakan Canva & AI untuk pemasaran digital',
+        'Menjalankan strategi internet marketing untuk meningkatkan penjualan dan loyalitas pelanggan',
+      ]),
+      sortOrder: 1,
+    },
+    {
+      title: 'Digital Systems Builder',
+      company: 'Freelance / Self-Taught',
+      location: 'Blitar, Jawa Timur',
+      startDate: '2020-01',
+      current: true,
+      description: 'Belajar coding secara otodidak dan membangun berbagai produk digital untuk menyelesaikan masalah nyata di bidang logistik, edukasi, dan peternakan.',
+      highlights: JSON.stringify([
+        'Membangun 7 produk digital secara otodidak',
+        'Adably - Platform edukasi Islami berbasis AI',
+        'Truck Modula, Derekin.id, Muatin.id - Ekosistem logistik',
+        'PediaVet - Kalkulasi nutrisi ternak berbasis data',
+        'Pengembangan media sosial Instagram Bentocat.id & Zoapedia.id',
+      ]),
+      sortOrder: 2,
+    },
+    {
+      title: 'Magang Kantor Notaris',
+      company: 'Kantor Notaris',
+      location: 'Solo, Jawa Tengah',
+      startDate: '2017-01',
+      endDate: '2017-03',
+      current: false,
+      description: 'Magang selama 3 bulan di kantor notaris setelah lulus kuliah S1 Ilmu Hukum.',
+      highlights: JSON.stringify([
+        'Mengamati dan memahami proses hukum dalam notariat',
+        'Mempelajari dokumen dan administrasi hukum yang mendukung praktik notaris',
+      ]),
+      sortOrder: 3,
+    },
   ];
   for (const e of experiences) {
     await expRepo.save(expRepo.create(e));
   }
   console.log('✅ Experiences created');
 
-  // 6. Education
+  // 6. Education (sesuai CV)
   await eduRepo.save(eduRepo.create({
     degree: 'S1 Ilmu Hukum',
     institution: 'Universitas Muhammadiyah Surakarta',
     year: 2016,
-    description: 'Lulus dari Fakultas Hukum dengan pemahaman mendalam tentang regulasi, analisis kasus, dan pemecahan masalah sistematis.',
+    description: 'Lulus dari Fakultas Hukum. Memiliki pengetahuan dasar hukum yang mendukung pemahaman regulasi dan analisis kasus.',
     sortOrder: 1,
   }));
   console.log('✅ Education created');
 
-  // 7. Timeline
+  // 7. Timeline (sesuai CV)
   const timelines = [
-    { year: '2016', title: 'Lulus S1 Ilmu Hukum', description: 'Menyelesaikan pendidikan S1 Ilmu Hukum di UMS.', sortOrder: 1 },
-    { year: '2017', title: 'Memulai Bisnis Pet Supplies', description: 'Memulai distribusi produk pasir kucing Bentocat.', sortOrder: 2 },
-    { year: '2020', title: 'Belajar Coding Otodidak', description: 'Mulai belajar programming secara otodidak.', sortOrder: 3 },
-    { year: '2023', title: 'Meluncurkan Ekosistem Logistik', description: 'Truck Modula, Derekin.id, dan Muatin.id.', sortOrder: 4 },
-    { year: '2024', title: 'Integrasi AI dalam Produk', description: 'Membangun Adably dan meluncurkan PediaVet.', sortOrder: 5 },
-    { year: '2025', title: '7 Produk Digital Aktif', description: 'Mengelola 7 produk digital secara bersamaan.', sortOrder: 6 },
+    { year: '2016', title: 'Lulus S1 Ilmu Hukum', description: 'Menyelesaikan pendidikan S1 Ilmu Hukum di Universitas Muhammadiyah Surakarta.', sortOrder: 1 },
+    { year: '2017', title: 'Magang Notaris & Memulai Bisnis', description: 'Magang 3 bulan di kantor notaris, kemudian memulai usaha distribusi pasir kucing Bentocat.', sortOrder: 2 },
+    { year: '2020', title: 'Belajar Coding Otodidak', description: 'Mulai belajar programming secara otodidak untuk membangun solusi digital bagi kebutuhan bisnis.', sortOrder: 3 },
+    { year: '2023', title: 'Meluncurkan Ekosistem Logistik', description: 'Membangun Truck Modula, Derekin.id, dan Muatin.id sebagai platform logistik on-demand.', sortOrder: 4 },
+    { year: '2024', title: 'Integrasi AI dalam Produk', description: 'Membangun Adably (edukasi Islami berbasis AI) dan PediaVet (kalkulasi nutrisi ternak).', sortOrder: 5 },
+    { year: '2025', title: '7 Produk Digital Aktif', description: 'Mengelola 7 produk digital secara bersamaan dengan strategi internet marketing dan AI.', sortOrder: 6 },
   ];
   for (const t of timelines) {
     await timelineRepo.save(timelineRepo.create(t));
