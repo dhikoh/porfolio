@@ -17,6 +17,8 @@ export class CreateCoverLetterDto {
   @ApiProperty() @IsString() @MaxLength(200) fullName: string;
   @ApiProperty() @IsString() @MaxLength(200) birthPlace: string;
   @ApiProperty() @IsString() @MaxLength(100) birthDate: string;
+  @ApiPropertyOptional() @IsOptional() @IsString() @IsIn(['Laki-laki', 'Perempuan', 'Male', 'Female']) gender?: string;
+  @ApiPropertyOptional() @IsOptional() @IsString() @MaxLength(500) address?: string;
   @ApiProperty() @IsString() @MaxLength(200) education: string;
   @ApiProperty() @IsString() @MaxLength(50) phone: string;
   @ApiProperty() @IsString() @MaxLength(200) email: string;
@@ -24,6 +26,4 @@ export class CreateCoverLetterDto {
   @ApiPropertyOptional() @IsOptional() @IsString() signatureUrl?: string;
 }
 
-export class GenerateFormatDto {
-  @ApiProperty() @IsString() @IsIn(['pdf', 'docx']) format: string;
-}
+export class UpdateCoverLetterDto extends CreateCoverLetterDto {}

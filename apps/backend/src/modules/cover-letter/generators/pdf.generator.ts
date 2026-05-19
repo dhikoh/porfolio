@@ -16,26 +16,26 @@ export async function generateCoverLetterPdf(dto: CreateCoverLetterDto): Promise
     doc.on('error', reject);
 
     const isEN = dto.language === 'en';
-    const lineHeight = 16;
+    const pageWidth = doc.page.width - doc.page.margins.left - doc.page.margins.right;
 
     // Register font
     doc.font('Times-Roman');
+    doc.fontSize(12);
 
-    // === Header: City, Date ===
-    doc.fontSize(12).text(`${dto.city}, ${dto.date}`, { align: 'left' });
+    // === City, Date (right-aligned) ===
+    doc.text(`${dto.city}, ${dto.date}`, { align: 'right' });
     doc.moveDown(1);
 
     // === Hal & Lampiran ===
     const halLabel = isEN ? 'Subject' : 'Hal';
-    const lampiranLabel = isEN ? 'Enclosure' : 'Lampiran';
+    const lampiranLabel = isEN ? 'Encl.' : 'Lamp';
     const lampiranUnit = isEN ? (dto.attachments.length > 1 ? 'Pages' : 'Page') : 'Lembar';
-    doc.text(`${halLabel}: ${isEN ? 'Job Application' : 'Lamaran Pekerjaan'} – ${dto.position}`);
-    doc.text(`${lampiranLabel}: ${dto.attachments.length} ${lampiranUnit}`);
+    doc.text(`${halLabel}   : ${isEN ? 'Job Application' : 'Lamaran Pekerjaan'} – ${dto.position}`);
+    doc.text(`${lampiranLabel}  : ${dto.attachments.length} ${lampiranUnit}`);
     doc.moveDown(1);
 
     // === Recipient ===
-    const kepadaLabel = isEN ? 'To,' : 'Kepada Yth.,';
-    doc.text(kepadaLabel);
+    doc.text(isEN ? 'To,' : 'Kepada Yth.');
     doc.text(`${dto.recipientTitle} ${dto.companyName}`);
     dto.companyAddress.split('\n').forEach(line => doc.text(line.trim()));
     doc.moveDown(1);
@@ -48,64 +48,77 @@ export async function generateCoverLetterPdf(dto: CreateCoverLetterDto): Promise
     doc.text(dto.openingParagraph, { align: 'justify', lineGap: 4 });
     doc.moveDown(0.5);
 
-    // === Personal Data ===
-    doc.text(isEN ? 'Here is my brief personal data:' : 'Berikut adalah data diri singkat saya:', { lineGap: 4 });
+    // === "Saya yang bertanda tangan di bawah ini:" ===
+    doc.text(isEN
+      ? 'I, the undersigned:'
+      : 'Saya yang bertanda tangan di bawah ini:', { lineGap: 4 });
     doc.moveDown(0.3);
 
-    const personalData = [
+    // Personal data with aligned colons
+    const labelWidth = 170;
+    const personalRows: [string, string][] = [
       [isEN ? 'Name' : 'Nama', dto.fullName],
       [isEN ? 'Place, Date of Birth' : 'Tempat, Tanggal Lahir', `${dto.birthPlace}, ${dto.birthDate}`],
-      [isEN ? 'Last Education' : 'Pendidikan Terakhir', dto.education],
-      [isEN ? 'Phone / WA' : 'No. Telepon / WA', dto.phone],
-      ['Email', dto.email],
     ];
+    if (dto.gender) {
+      personalRows.push([isEN ? 'Gender' : 'Jenis Kelamin', dto.gender]);
+    }
+    if (dto.address) {
+      personalRows.push([isEN ? 'Address' : 'Alamat', dto.address]);
+    }
+    personalRows.push(
+      [isEN ? 'Last Education' : 'Pendidikan Terakhir', dto.education],
+      [isEN ? 'Phone / WA' : 'Nomor Handphone', dto.phone],
+      ['Email', dto.email],
+    );
     if (dto.website) {
-      personalData.push([isEN ? 'Portfolio Website' : 'Website Portofolio', dto.website]);
+      personalRows.push([isEN ? 'Portfolio Website' : 'Website Portofolio', dto.website]);
     }
 
-    personalData.forEach(([label, value]) => {
-      doc.text(`${label}: ${value}`, { indent: 20 });
+    personalRows.forEach(([label, value]) => {
+      const y = doc.y;
+      doc.text(label, doc.page.margins.left + 20, y, { width: labelWidth, continued: false });
+      doc.text(`: ${value}`, doc.page.margins.left + 20 + labelWidth, y);
     });
     doc.moveDown(0.5);
 
     // === Body Paragraph ===
-    doc.text(dto.bodyParagraph, { align: 'justify', lineGap: 4 });
+    doc.text(dto.bodyParagraph, doc.page.margins.left, doc.y, { align: 'justify', lineGap: 4 });
     doc.moveDown(0.5);
 
-    // === Attachments ===
+    // === Attachments with intro sentence ===
     doc.text(isEN
-      ? 'For your consideration, I enclose the following:'
-      : 'Sebagai bahan pertimbangan Bapak/Ibu, bersama surat ini turut saya lampirkan:', { lineGap: 4 });
+      ? 'To complete the required administrative documents and for your consideration, I also enclose the following:'
+      : 'Untuk melengkapi beberapa data yang diperlukan sebagai persyaratan administrasi dan juga sebagai bahan pertimbangan Bapak/Ibu, saya lampirkan juga kelengkapan data diri sebagai berikut:', { align: 'justify', lineGap: 4 });
     doc.moveDown(0.3);
     dto.attachments.forEach((att, i) => {
-      doc.text(`${i + 1}. ${att}`, { indent: 20 });
+      doc.text(`${i + 1}.  ${att}`, { indent: 30 });
     });
     doc.moveDown(0.5);
 
     // === Closing Paragraph ===
     doc.text(dto.closingParagraph, { align: 'justify', lineGap: 4 });
-    doc.moveDown(0.5);
-
-    // === Thank you ===
-    doc.text(isEN
-      ? 'Thank you for your time and consideration.'
-      : 'Atas waktu dan pertimbangan Bapak/Ibu, saya mengucapkan terima kasih.');
     doc.moveDown(1);
 
-    // === Closing & Signature ===
-    doc.text(isEN ? 'Sincerely,' : 'Hormat saya,');
-    doc.moveDown(0.5);
+    // === Signature block (right-aligned) ===
+    const sigBlockX = doc.page.width - doc.page.margins.right - 180;
+    doc.text(isEN ? 'Sincerely,' : 'Hormat saya,', sigBlockX, doc.y, { width: 180 });
+    doc.moveDown(0.3);
 
     // Signature image if available
     if (dto.signatureUrl) {
       const sigPath = path.join(process.cwd(), dto.signatureUrl);
       if (fs.existsSync(sigPath)) {
-        doc.image(sigPath, { width: 150, height: 60 });
+        doc.image(sigPath, sigBlockX, doc.y, { width: 120, height: 50 });
+        doc.moveDown(3);
+      } else {
+        doc.moveDown(3);
       }
+    } else {
+      doc.moveDown(3);
     }
-    doc.moveDown(2);
 
-    doc.text(`(${dto.fullName})`);
+    doc.text(`(${dto.fullName})`, sigBlockX, doc.y, { width: 180 });
 
     doc.end();
   });

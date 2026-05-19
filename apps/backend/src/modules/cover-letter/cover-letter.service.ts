@@ -4,7 +4,7 @@ import { Repository } from 'typeorm';
 import * as fs from 'fs';
 import * as path from 'path';
 import { CoverLetter } from '../../entities/cover-letter.entity';
-import { CreateCoverLetterDto } from './dto/cover-letter.dto';
+import { CreateCoverLetterDto, UpdateCoverLetterDto } from './dto/cover-letter.dto';
 import { generateCoverLetterPdf } from './generators/pdf.generator';
 import { generateCoverLetterDocx } from './generators/docx.generator';
 
@@ -12,7 +12,13 @@ import { generateCoverLetterDocx } from './generators/docx.generator';
 export class CoverLetterService {
   constructor(
     @InjectRepository(CoverLetter) private readonly repo: Repository<CoverLetter>,
-  ) {}
+  ) {
+    // Ensure upload directory exists at startup
+    const sigDir = path.join(process.cwd(), 'uploads', 'signatures');
+    if (!fs.existsSync(sigDir)) {
+      fs.mkdirSync(sigDir, { recursive: true });
+    }
+  }
 
   async findAll(): Promise<CoverLetter[]> {
     return this.repo.find({ order: { createdAt: 'DESC' } });
@@ -32,6 +38,28 @@ export class CoverLetterService {
       formData: JSON.stringify(dto),
       signatureUrl: dto.signatureUrl || '',
     });
+    return this.repo.save(letter);
+  }
+
+  async update(id: string, dto: UpdateCoverLetterDto): Promise<CoverLetter> {
+    const letter = await this.findById(id);
+
+    // If signature changed, clean up old one
+    const oldSigUrl = letter.signatureUrl;
+    const newSigUrl = dto.signatureUrl || '';
+    if (oldSigUrl && oldSigUrl !== newSigUrl) {
+      const oldPath = path.join(process.cwd(), oldSigUrl);
+      if (fs.existsSync(oldPath)) {
+        fs.unlinkSync(oldPath);
+      }
+    }
+
+    letter.language = dto.language;
+    letter.position = dto.position;
+    letter.companyName = dto.companyName;
+    letter.formData = JSON.stringify(dto);
+    letter.signatureUrl = newSigUrl;
+
     return this.repo.save(letter);
   }
 

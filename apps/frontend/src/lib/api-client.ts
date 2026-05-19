@@ -265,6 +265,7 @@ export const api = {
   getCoverLetters: () => apiFetch<Record<string, unknown>[]>('/cover-letter'),
   getCoverLetter: (id: string) => apiFetch<Record<string, unknown>>(`/cover-letter/${id}`),
   createCoverLetter: (data: Record<string, unknown>) => apiFetch('/cover-letter', { method: 'POST', body: JSON.stringify(data) }),
+  updateCoverLetter: (id: string, data: Record<string, unknown>) => apiFetch(`/cover-letter/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
   deleteCoverLetter: (id: string) => apiFetch(`/cover-letter/${id}`, { method: 'DELETE' }),
   generateCoverLetter: async (id: string, format: 'pdf' | 'docx') => {
     const token = getAccessToken();
