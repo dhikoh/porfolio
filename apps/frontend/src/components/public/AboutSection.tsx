@@ -2,6 +2,7 @@
 
 import { motion, useInView } from 'framer-motion';
 import Image from 'next/image';
+import { toDirectImageUrl } from '@/lib/image-utils';
 import { useRef } from 'react';
 
 interface AboutProps {
@@ -26,7 +27,7 @@ export default function AboutSection({ profile, settings }: AboutProps) {
             <div className="relative">
               <div className="w-48 h-48 md:w-64 md:h-64 rounded-3xl bg-zinc-800 border border-white/10 overflow-hidden flex items-center justify-center relative">
                 {profile.avatarUrl ? (
-                  <Image src={profile.avatarUrl} alt={profile.fullName} fill className="object-cover" />
+                  <Image src={toDirectImageUrl(profile.avatarUrl)} alt={profile.fullName} fill className="object-cover" />
                 ) : (
                   <div className="text-center">
                     <div className="text-6xl md:text-7xl font-bold text-zinc-600">{profile.fullName.split(' ').map(n => n[0]).join('')}</div>
