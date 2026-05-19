@@ -294,11 +294,16 @@ export const api = {
   // Document Merger
   getMergedDocuments: () => apiFetch<Record<string, unknown>[]>('/document-merger'),
   deleteMergedDocument: (id: string) => apiFetch(`/document-merger/${id}`, { method: 'DELETE' }),
-  mergeDocuments: async (files: File[], title?: string, watermarkText?: string) => {
+  mergeDocuments: async (files: File[], title?: string, watermark?: { text: string; position: string; opacity: number; size: number }) => {
     const formData = new FormData();
     files.forEach(f => formData.append('files', f));
     if (title) formData.append('title', title);
-    if (watermarkText) formData.append('watermarkText', watermarkText);
+    if (watermark?.text) {
+      formData.append('watermarkText', watermark.text);
+      formData.append('watermarkPosition', watermark.position);
+      formData.append('watermarkOpacity', String(watermark.opacity));
+      formData.append('watermarkSize', String(watermark.size));
+    }
     return apiFetch<Record<string, unknown>>('/document-merger/merge', { method: 'POST', body: formData });
   },
   compressMergedDocument: (id: string, quality: number, targetSizeMB?: number) =>

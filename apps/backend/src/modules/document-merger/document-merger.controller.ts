@@ -51,11 +51,21 @@ export class DocumentMergerController {
     @UploadedFiles() files: Express.Multer.File[],
     @Body('title') title?: string,
     @Body('watermarkText') watermarkText?: string,
+    @Body('watermarkPosition') watermarkPosition?: string,
+    @Body('watermarkOpacity') watermarkOpacity?: string,
+    @Body('watermarkSize') watermarkSize?: string,
   ) {
     if (!files || files.length < 2) {
       throw new BadRequestException('Minimal 2 file untuk digabungkan');
     }
-    return this.service.merge(files, title, watermarkText);
+    return this.service.merge(
+      files,
+      title,
+      watermarkText,
+      watermarkPosition,
+      watermarkOpacity ? Number(watermarkOpacity) : undefined,
+      watermarkSize ? Number(watermarkSize) : undefined,
+    );
   }
 
   @Post(':id/compress')

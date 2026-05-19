@@ -46,6 +46,9 @@ export class DocumentMergerService {
     files: Express.Multer.File[],
     title?: string,
     watermarkText?: string,
+    watermarkPosition?: string,
+    watermarkOpacity?: number,
+    watermarkSize?: number,
   ): Promise<MergedDocument> {
     if (!files || files.length < 2) {
       throw new BadRequestException('Minimal 2 file untuk digabungkan');
@@ -89,7 +92,13 @@ export class DocumentMergerService {
 
     // Apply watermark to all pages if provided
     if (watermarkText && watermarkText.trim()) {
-      await this.applyWatermark(mergedPdf, watermarkText.trim());
+      await this.applyWatermark(
+        mergedPdf,
+        watermarkText.trim(),
+        watermarkPosition || 'bottom-center',
+        watermarkOpacity ?? 30,
+        watermarkSize || 8,
+      );
     }
 
     const pdfBytes = await mergedPdf.save();
@@ -112,26 +121,80 @@ export class DocumentMergerService {
   }
 
   /**
-   * Apply footer watermark text to every page
+   * Apply watermark text to every page with configurable options
+   * @param position: top-left, top-center, top-right, center, bottom-left, bottom-center, bottom-right, diagonal
+   * @param opacity: 0-100 (percentage)
+   * @param fontSize: pt size
    */
-  private async applyWatermark(pdf: PDFDocument, text: string): Promise<void> {
+  private async applyWatermark(
+    pdf: PDFDocument,
+    text: string,
+    position = 'bottom-center',
+    opacity = 30,
+    fontSize = 8,
+  ): Promise<void> {
     const font = await pdf.embedFont(StandardFonts.Helvetica);
-    const fontSize = 8;
-    const color = rgb(0.6, 0.6, 0.6); // light gray
+    const clampedOpacity = Math.max(0, Math.min(100, opacity)) / 100;
+    const color = rgb(0.5, 0.5, 0.5);
     const pages = pdf.getPages();
+    const margin = 20;
 
     for (const page of pages) {
-      const { width } = page.getSize();
+      const { width, height } = page.getSize();
       const textWidth = font.widthOfTextAtSize(text, fontSize);
-      const x = (width - textWidth) / 2; // center
-      const y = 20; // 20pt from bottom
+      const textHeight = fontSize;
+
+      let x: number;
+      let y: number;
+      let rotate: ReturnType<typeof import('pdf-lib').degrees> | undefined;
+
+      switch (position) {
+        case 'top-left':
+          x = margin;
+          y = height - margin - textHeight;
+          break;
+        case 'top-center':
+          x = (width - textWidth) / 2;
+          y = height - margin - textHeight;
+          break;
+        case 'top-right':
+          x = width - margin - textWidth;
+          y = height - margin - textHeight;
+          break;
+        case 'center':
+          x = (width - textWidth) / 2;
+          y = (height - textHeight) / 2;
+          break;
+        case 'bottom-left':
+          x = margin;
+          y = margin;
+          break;
+        case 'bottom-right':
+          x = width - margin - textWidth;
+          y = margin;
+          break;
+        case 'diagonal': {
+          // Diagonal across the page — draw larger text rotated 45°
+          const diagSize = Math.max(fontSize, 24);
+          const diagWidth = font.widthOfTextAtSize(text, diagSize);
+          x = (width - diagWidth) / 2;
+          y = height / 2;
+          const { degrees } = await import('pdf-lib');
+          rotate = degrees(45);
+          page.drawText(text, {
+            x, y, size: diagSize, font, color, opacity: clampedOpacity, rotate,
+          });
+          continue; // skip default drawText below
+        }
+        case 'bottom-center':
+        default:
+          x = (width - textWidth) / 2;
+          y = margin;
+          break;
+      }
 
       page.drawText(text, {
-        x,
-        y,
-        size: fontSize,
-        font,
-        color,
+        x, y, size: fontSize, font, color, opacity: clampedOpacity,
       });
     }
   }

@@ -1,22 +1,27 @@
 'use client';
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { Combine, Upload, Trash2, Download, Loader2, FileText, Image as ImageIcon, File, GripVertical, X, AlertCircle, CheckCircle2, Shrink, Stamp } from 'lucide-react';
+import { Combine, Upload, Trash2, Download, Loader2, FileText, Image as ImageIcon, File, GripVertical, X, AlertCircle, CheckCircle2, Shrink, Stamp, ChevronDown, ChevronUp } from 'lucide-react';
 import { api } from '@/lib/api-client';
 
 const ACCEPTED_TYPES = '.pdf,.jpg,.jpeg,.png';
-const MAX_FILE_SIZE = 100 * 1024 * 1024; // 100MB per file
+const MAX_FILE_SIZE = 100 * 1024 * 1024;
 const ALLOWED_MIMES = ['application/pdf', 'image/jpeg', 'image/png'];
+const FILE_ICONS: Record<string, typeof FileText> = { 'application/pdf': FileText, 'image/jpeg': ImageIcon, 'image/png': ImageIcon };
 
-const FILE_ICONS: Record<string, typeof FileText> = {
-  'application/pdf': FileText,
-  'image/jpeg': ImageIcon,
-  'image/png': ImageIcon,
-};
+const POSITION_OPTIONS = [
+  { value: 'top-left', label: 'Kiri Atas' },
+  { value: 'top-center', label: 'Tengah Atas' },
+  { value: 'top-right', label: 'Kanan Atas' },
+  { value: 'center', label: 'Tengah' },
+  { value: 'bottom-left', label: 'Kiri Bawah' },
+  { value: 'bottom-center', label: 'Tengah Bawah' },
+  { value: 'bottom-right', label: 'Kanan Bawah' },
+  { value: 'diagonal', label: 'Diagonal (miring)' },
+];
 
 export default function DocumentMergerPage() {
   const [files, setFiles] = useState<File[]>([]);
   const [title, setTitle] = useState('');
-  const [watermarkText, setWatermarkText] = useState('');
   const [history, setHistory] = useState<Record<string, unknown>[]>([]);
   const [loading, setLoading] = useState(false);
   const [merging, setMerging] = useState(false);
@@ -25,6 +30,13 @@ export default function DocumentMergerPage() {
   const [dragOver, setDragOver] = useState(false);
   const [dragIdx, setDragIdx] = useState<number | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
+
+  // Watermark state
+  const [wmExpanded, setWmExpanded] = useState(false);
+  const [wmText, setWmText] = useState('');
+  const [wmPosition, setWmPosition] = useState('bottom-center');
+  const [wmOpacity, setWmOpacity] = useState(30);
+  const [wmSize, setWmSize] = useState(8);
 
   // Compression modal state
   const [compressId, setCompressId] = useState<string | null>(null);
@@ -49,20 +61,16 @@ export default function DocumentMergerPage() {
 
   const validateFile = (file: File): string | null => {
     if (!ALLOWED_MIMES.includes(file.type)) return `"${file.name}" — tipe tidak didukung.`;
-    if (file.size > MAX_FILE_SIZE) return `"${file.name}" — ukuran melebihi 100MB.`;
+    if (file.size > MAX_FILE_SIZE) return `"${file.name}" — melebihi 100MB.`;
     return null;
   };
 
   const addFiles = useCallback((newFiles: File[]) => {
     const errors: string[] = [];
     const valid: File[] = [];
-    newFiles.forEach(f => {
-      const err = validateFile(f);
-      if (err) errors.push(err);
-      else valid.push(f);
-    });
-    if (errors.length > 0) showMessage(errors.join('\n'), 'error');
-    if (valid.length > 0) setFiles(prev => [...prev, ...valid]);
+    newFiles.forEach(f => { const e = validateFile(f); e ? errors.push(e) : valid.push(f); });
+    if (errors.length) showMessage(errors.join('\n'), 'error');
+    if (valid.length) setFiles(prev => [...prev, ...valid]);
   }, []);
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -70,69 +78,50 @@ export default function DocumentMergerPage() {
     e.target.value = '';
   };
 
-  const handleDrop = (e: React.DragEvent) => {
-    e.preventDefault();
-    setDragOver(false);
-    addFiles(Array.from(e.dataTransfer.files));
-  };
-
+  const handleDrop = (e: React.DragEvent) => { e.preventDefault(); setDragOver(false); addFiles(Array.from(e.dataTransfer.files)); };
   const removeFile = (idx: number) => setFiles(prev => prev.filter((_, i) => i !== idx));
-
   const handleDragStart = (idx: number) => setDragIdx(idx);
   const handleDragOver = (e: React.DragEvent, idx: number) => {
     e.preventDefault();
     if (dragIdx === null || dragIdx === idx) return;
-    setFiles(prev => {
-      const arr = [...prev];
-      const [item] = arr.splice(dragIdx, 1);
-      arr.splice(idx, 0, item);
-      return arr;
-    });
+    setFiles(prev => { const a = [...prev]; const [it] = a.splice(dragIdx, 1); a.splice(idx, 0, it); return a; });
     setDragIdx(idx);
   };
   const handleDragEnd = () => setDragIdx(null);
 
   const handleMerge = async () => {
     if (files.length < 2) { showMessage('Minimal 2 file', 'error'); return; }
-    setMerging(true);
-    setMessage('');
+    setMerging(true); setMessage('');
     try {
-      await api.mergeDocuments(files, title || undefined, watermarkText || undefined);
+      const watermark = wmText.trim() ? { text: wmText.trim(), position: wmPosition, opacity: wmOpacity, size: wmSize } : undefined;
+      await api.mergeDocuments(files, title || undefined, watermark);
       showMessage('Dokumen berhasil digabungkan!', 'success');
-      setFiles([]);
-      setTitle('');
+      setFiles([]); setTitle('');
       await loadHistory();
-    } catch (err) {
-      showMessage(err instanceof Error ? err.message : 'Gagal menggabungkan', 'error');
-    }
+    } catch (err) { showMessage(err instanceof Error ? err.message : 'Gagal menggabungkan', 'error'); }
     setMerging(false);
   };
 
   const handleCompress = async () => {
     if (!compressId) return;
-    setCompressing(true);
-    setCompressResult(null);
+    setCompressing(true); setCompressResult(null);
     try {
       const target = compressTarget ? parseFloat(compressTarget) : undefined;
       const result = await api.compressMergedDocument(compressId, compressQuality, target);
       setCompressResult(result);
       showMessage(`Berhasil dikompres! Pengurangan: ${result.reduction}`, 'success');
       await loadHistory();
-    } catch (err) {
-      showMessage(err instanceof Error ? err.message : 'Gagal mengompresi', 'error');
-    }
+    } catch (err) { showMessage(err instanceof Error ? err.message : 'Gagal mengompresi', 'error'); }
     setCompressing(false);
   };
 
-  const handleDownload = async (id: string, docTitle: string) => {
-    try { await api.downloadMergedDocument(id, docTitle); }
-    catch (err) { showMessage(err instanceof Error ? err.message : 'Gagal download', 'error'); }
+  const handleDownload = async (id: string, t: string) => {
+    try { await api.downloadMergedDocument(id, t); } catch (err) { showMessage(err instanceof Error ? err.message : 'Gagal download', 'error'); }
   };
 
   const handleDelete = async (id: string) => {
     if (!confirm('Hapus dokumen ini?')) return;
-    try { await api.deleteMergedDocument(id); await loadHistory(); showMessage('Dihapus', 'success'); }
-    catch { /* ignore */ }
+    try { await api.deleteMergedDocument(id); await loadHistory(); showMessage('Dihapus', 'success'); } catch { /* */ }
   };
 
   const formatSize = (bytes: number) => {
@@ -141,21 +130,15 @@ export default function DocumentMergerPage() {
     return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
   };
 
-  const totalSize = files.reduce((sum, f) => sum + f.size, 0);
-
-  const qualityLabel = (q: number) => {
-    if (q <= 25) return 'Rendah (layar)';
-    if (q <= 50) return 'Sedang (ebook)';
-    if (q <= 75) return 'Baik (cetak)';
-    return 'Tinggi (profesional)';
-  };
+  const totalSize = files.reduce((s, f) => s + f.size, 0);
+  const qualityLabel = (q: number) => q <= 25 ? 'Rendah' : q <= 50 ? 'Sedang' : q <= 75 ? 'Baik' : 'Tinggi';
 
   return (
     <div>
       <div className="flex items-center justify-between mb-6">
         <div>
           <h1 className="text-2xl font-semibold text-white">Gabung Dokumen</h1>
-          <p className="text-zinc-500 text-sm mt-1">Gabungkan file menjadi 1 PDF · watermark · kompresi</p>
+          <p className="text-zinc-500 text-sm mt-1">Gabungkan file → 1 PDF · watermark · kompresi</p>
         </div>
       </div>
 
@@ -168,27 +151,81 @@ export default function DocumentMergerPage() {
 
       {/* Upload Area */}
       <div className="bg-zinc-900/50 border border-white/5 rounded-2xl p-6 mb-6">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-          <div>
-            <label className="text-sm text-zinc-400 block mb-1.5">Judul Dokumen (opsional)</label>
-            <input value={title} onChange={e => setTitle(e.target.value)} placeholder="e.g. Berkas Lamaran Kerja" className="w-full px-4 py-3 bg-zinc-900/50 border border-white/10 rounded-xl text-white text-sm placeholder:text-zinc-600 focus:outline-none focus:border-white/20" />
-          </div>
-          <div>
-            <label className="text-sm text-zinc-400 block mb-1.5">
-              <Stamp className="w-3.5 h-3.5 inline mr-1" />Watermark Footer (opsional)
-            </label>
-            <input value={watermarkText} onChange={e => setWatermarkText(e.target.value)} placeholder="e.g. Dokumen milik Dhiko Herlambang" className="w-full px-4 py-3 bg-zinc-900/50 border border-white/10 rounded-xl text-white text-sm placeholder:text-zinc-600 focus:outline-none focus:border-white/20" />
-          </div>
+        {/* Title */}
+        <div className="mb-4">
+          <label className="text-sm text-zinc-400 block mb-1.5">Judul Dokumen (opsional)</label>
+          <input value={title} onChange={e => setTitle(e.target.value)} placeholder="e.g. Berkas Lamaran Kerja" className="w-full px-4 py-3 bg-zinc-900/50 border border-white/10 rounded-xl text-white text-sm placeholder:text-zinc-600 focus:outline-none focus:border-white/20" />
+        </div>
+
+        {/* Watermark Section — Collapsible */}
+        <div className="mb-4 border border-white/5 rounded-xl overflow-hidden">
+          <button onClick={() => setWmExpanded(!wmExpanded)} className="w-full flex items-center justify-between px-4 py-3 bg-zinc-800/30 hover:bg-zinc-800/50 transition-colors text-left">
+            <span className="flex items-center gap-2 text-sm text-zinc-400">
+              <Stamp className="w-4 h-4" />
+              Watermark {wmText.trim() && <span className="text-emerald-400 text-xs">· aktif</span>}
+            </span>
+            {wmExpanded ? <ChevronUp className="w-4 h-4 text-zinc-500" /> : <ChevronDown className="w-4 h-4 text-zinc-500" />}
+          </button>
+
+          {wmExpanded && (
+            <div className="p-4 space-y-4 border-t border-white/5">
+              {/* Text */}
+              <div>
+                <label className="text-xs text-zinc-500 block mb-1">Teks Watermark</label>
+                <input value={wmText} onChange={e => setWmText(e.target.value)} placeholder="e.g. Dokumen milik Dhiko Herlambang" className="w-full px-4 py-2.5 bg-zinc-900/50 border border-white/10 rounded-xl text-white text-sm placeholder:text-zinc-600 focus:outline-none focus:border-white/20" />
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                {/* Position */}
+                <div>
+                  <label className="text-xs text-zinc-500 block mb-1">Posisi</label>
+                  <select value={wmPosition} onChange={e => setWmPosition(e.target.value)} className="w-full px-3 py-2.5 bg-zinc-900/50 border border-white/10 rounded-xl text-white text-sm focus:outline-none focus:border-white/20">
+                    {POSITION_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+                  </select>
+                </div>
+
+                {/* Opacity */}
+                <div>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="text-xs text-zinc-500">Opacity</label>
+                    <span className="text-xs text-white">{wmOpacity}%</span>
+                  </div>
+                  <input type="range" min={5} max={100} step={5} value={wmOpacity} onChange={e => setWmOpacity(Number(e.target.value))} className="w-full h-2 bg-zinc-800 rounded-lg appearance-none cursor-pointer accent-white" />
+                  <div className="flex justify-between text-[9px] text-zinc-700 mt-0.5">
+                    <span>Transparan</span><span>Solid</span>
+                  </div>
+                </div>
+
+                {/* Size */}
+                <div>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="text-xs text-zinc-500">Ukuran</label>
+                    <span className="text-xs text-white">{wmSize}pt</span>
+                  </div>
+                  <input type="range" min={6} max={72} step={2} value={wmSize} onChange={e => setWmSize(Number(e.target.value))} className="w-full h-2 bg-zinc-800 rounded-lg appearance-none cursor-pointer accent-white" />
+                  <div className="flex justify-between text-[9px] text-zinc-700 mt-0.5">
+                    <span>Kecil</span><span>Besar</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Preview */}
+              {wmText.trim() && (
+                <div className="bg-zinc-800/30 rounded-xl p-3 text-center">
+                  <p className="text-[10px] text-zinc-600 mb-1">Preview</p>
+                  <p style={{ fontSize: `${Math.min(wmSize, 24)}px`, opacity: wmOpacity / 100 }} className="text-zinc-400 font-sans">
+                    {wmText}
+                  </p>
+                  <p className="text-[10px] text-zinc-700 mt-1">{POSITION_OPTIONS.find(o => o.value === wmPosition)?.label} · {wmOpacity}% opacity · {wmSize}pt</p>
+                </div>
+              )}
+            </div>
+          )}
         </div>
 
         {/* Drop Zone */}
-        <div
-          onDragOver={e => { e.preventDefault(); setDragOver(true); }}
-          onDragLeave={() => setDragOver(false)}
-          onDrop={handleDrop}
-          onClick={() => fileRef.current?.click()}
-          className={`border-2 border-dashed rounded-2xl p-10 text-center cursor-pointer transition-all duration-200 ${dragOver ? 'border-white/40 bg-white/5 scale-[1.01]' : 'border-white/10 hover:border-white/20 hover:bg-white/[0.02]'}`}
-        >
+        <div onDragOver={e => { e.preventDefault(); setDragOver(true); }} onDragLeave={() => setDragOver(false)} onDrop={handleDrop} onClick={() => fileRef.current?.click()}
+          className={`border-2 border-dashed rounded-2xl p-10 text-center cursor-pointer transition-all duration-200 ${dragOver ? 'border-white/40 bg-white/5 scale-[1.01]' : 'border-white/10 hover:border-white/20 hover:bg-white/[0.02]'}`}>
           <Upload className={`w-10 h-10 mx-auto mb-3 transition-colors ${dragOver ? 'text-white' : 'text-zinc-600'}`} />
           <p className="text-zinc-400 text-sm font-medium">Drag & drop file di sini</p>
           <p className="text-zinc-600 text-xs mt-1">atau klik untuk browse</p>
@@ -197,7 +234,7 @@ export default function DocumentMergerPage() {
             <span className="px-2 py-0.5 bg-blue-500/10 text-blue-400 text-xs rounded-md">JPG</span>
             <span className="px-2 py-0.5 bg-green-500/10 text-green-400 text-xs rounded-md">PNG</span>
           </div>
-          <p className="text-zinc-700 text-[10px] mt-2">Maks 100MB per file · Maks 20 file</p>
+          <p className="text-zinc-700 text-[10px] mt-2">Maks 100MB/file · 20 file</p>
         </div>
         <input ref={fileRef} type="file" accept={ACCEPTED_TYPES} multiple onChange={handleFileSelect} className="hidden" />
 
@@ -205,9 +242,7 @@ export default function DocumentMergerPage() {
         {files.length > 0 && (
           <div className="mt-5">
             <div className="flex items-center justify-between mb-3">
-              <p className="text-sm text-zinc-400">
-                <span className="text-white font-medium">{files.length}</span> file · <span className="text-white font-medium">{formatSize(totalSize)}</span>
-              </p>
+              <p className="text-sm text-zinc-400"><span className="text-white font-medium">{files.length}</span> file · <span className="text-white font-medium">{formatSize(totalSize)}</span></p>
               <button onClick={() => setFiles([])} className="text-xs text-zinc-500 hover:text-red-400 transition-colors">Hapus semua</button>
             </div>
             <div className="space-y-1.5">
@@ -228,11 +263,7 @@ export default function DocumentMergerPage() {
                 );
               })}
             </div>
-            {files.length < 2 && (
-              <div className="mt-3 text-xs text-amber-400/80 flex items-center gap-1.5">
-                <AlertCircle className="w-3.5 h-3.5" /> Tambahkan minimal 1 file lagi
-              </div>
-            )}
+            {files.length < 2 && <div className="mt-3 text-xs text-amber-400/80 flex items-center gap-1.5"><AlertCircle className="w-3.5 h-3.5" /> Tambahkan minimal 1 file lagi</div>}
             <button onClick={handleMerge} disabled={merging || files.length < 2} className="w-full flex items-center justify-center gap-2 px-6 py-3.5 bg-white text-zinc-950 rounded-xl text-sm font-semibold hover:bg-zinc-200 transition-colors disabled:opacity-40 mt-4">
               {merging ? <><Loader2 className="w-4 h-4 animate-spin" /> Menggabungkan...</> : <><Combine className="w-4 h-4" /> Gabungkan {files.length} File → 1 PDF</>}
             </button>
@@ -249,42 +280,30 @@ export default function DocumentMergerPage() {
               <h2 className="text-lg font-semibold text-white flex items-center gap-2"><Shrink className="w-5 h-5" /> Kompres PDF</h2>
               <button onClick={() => { setCompressId(null); setCompressResult(null); }} className="text-zinc-500 hover:text-white"><X className="w-5 h-5" /></button>
             </div>
-
             <div className="space-y-5">
-              {/* Quality slider */}
               <div>
                 <div className="flex items-center justify-between mb-2">
                   <label className="text-sm text-zinc-400">Kualitas</label>
                   <span className="text-xs text-white bg-zinc-800 px-2 py-0.5 rounded">{compressQuality}% — {qualityLabel(compressQuality)}</span>
                 </div>
-                <input type="range" min={10} max={100} step={5} value={compressQuality} onChange={e => setCompressQuality(Number(e.target.value))}
-                  className="w-full h-2 bg-zinc-800 rounded-lg appearance-none cursor-pointer accent-white" />
-                <div className="flex justify-between text-[10px] text-zinc-600 mt-1">
-                  <span>Kecil</span><span>Sedang</span><span>Besar</span>
-                </div>
+                <input type="range" min={10} max={100} step={5} value={compressQuality} onChange={e => setCompressQuality(Number(e.target.value))} className="w-full h-2 bg-zinc-800 rounded-lg appearance-none cursor-pointer accent-white" />
+                <div className="flex justify-between text-[10px] text-zinc-600 mt-1"><span>Kecil</span><span>Sedang</span><span>Besar</span></div>
               </div>
-
-              {/* Target size */}
               <div>
                 <label className="text-sm text-zinc-400 block mb-1.5">Target Ukuran (MB) — opsional</label>
-                <input type="number" min={0.5} step={0.5} value={compressTarget} onChange={e => setCompressTarget(e.target.value)} placeholder="e.g. 5"
-                  className="w-full px-4 py-3 bg-zinc-800/50 border border-white/10 rounded-xl text-white text-sm placeholder:text-zinc-600 focus:outline-none focus:border-white/20" />
-                <p className="text-[10px] text-zinc-600 mt-1">Kosongkan jika hanya ingin mengatur kualitas</p>
+                <input type="number" min={0.5} step={0.5} value={compressTarget} onChange={e => setCompressTarget(e.target.value)} placeholder="e.g. 5" className="w-full px-4 py-3 bg-zinc-800/50 border border-white/10 rounded-xl text-white text-sm placeholder:text-zinc-600 focus:outline-none focus:border-white/20" />
+                <p className="text-[10px] text-zinc-600 mt-1">Kosongkan jika hanya pakai kualitas</p>
               </div>
-
-              {/* Result */}
               {compressResult && (
                 <div className="bg-emerald-500/10 border border-emerald-500/20 rounded-xl p-3 text-sm">
-                  <p className="text-emerald-400 font-medium">Berhasil dikompres!</p>
+                  <p className="text-emerald-400 font-medium">Berhasil!</p>
                   <div className="flex gap-4 mt-1 text-xs text-emerald-400/80">
-                    <span>Sebelum: {formatSize(compressResult.originalSize)}</span>
-                    <span>→</span>
+                    <span>Sebelum: {formatSize(compressResult.originalSize)}</span><span>→</span>
                     <span>Sesudah: {formatSize(compressResult.compressedSize)}</span>
                     <span className="text-emerald-300 font-medium">-{compressResult.reduction}</span>
                   </div>
                 </div>
               )}
-
               <button onClick={handleCompress} disabled={compressing} className="w-full flex items-center justify-center gap-2 px-6 py-3 bg-white text-zinc-950 rounded-xl text-sm font-medium hover:bg-zinc-200 transition-colors disabled:opacity-50">
                 {compressing ? <><Loader2 className="w-4 h-4 animate-spin" /> Mengompresi...</> : <><Shrink className="w-4 h-4" /> Kompres Sekarang</>}
               </button>
@@ -310,9 +329,7 @@ export default function DocumentMergerPage() {
               return (
                 <div key={doc.id as string} className="bg-zinc-900/50 border border-white/5 rounded-2xl p-5 hover:border-white/10 transition-colors">
                   <div className="flex items-start gap-4">
-                    <div className="w-10 h-10 bg-red-500/10 rounded-xl flex items-center justify-center flex-shrink-0">
-                      <FileText className="w-5 h-5 text-red-400" />
-                    </div>
+                    <div className="w-10 h-10 bg-red-500/10 rounded-xl flex items-center justify-center flex-shrink-0"><FileText className="w-5 h-5 text-red-400" /></div>
                     <div className="flex-1 min-w-0">
                       <h3 className="text-white font-medium text-sm">{doc.title as string}</h3>
                       <div className="flex items-center gap-2 mt-1 flex-wrap">
@@ -325,7 +342,7 @@ export default function DocumentMergerPage() {
                       <p className="text-zinc-700 text-[10px] mt-1">{new Date(doc.createdAt as string).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' })}</p>
                     </div>
                     <div className="flex gap-2 flex-shrink-0 flex-wrap justify-end">
-                      <button onClick={() => { setCompressId(doc.id as string); setCompressResult(null); setCompressQuality(50); setCompressTarget(''); }} className="flex items-center gap-1.5 px-3 py-2 bg-purple-500/10 text-purple-400 hover:bg-purple-500/20 rounded-xl text-xs font-medium transition-colors" title="Kompres PDF">
+                      <button onClick={() => { setCompressId(doc.id as string); setCompressResult(null); setCompressQuality(50); setCompressTarget(''); }} className="flex items-center gap-1.5 px-3 py-2 bg-purple-500/10 text-purple-400 hover:bg-purple-500/20 rounded-xl text-xs font-medium transition-colors" title="Kompres">
                         <Shrink className="w-3.5 h-3.5" /> Kompres
                       </button>
                       <button onClick={() => handleDownload(doc.id as string, doc.title as string)} className="flex items-center gap-1.5 px-3 py-2 bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20 rounded-xl text-xs font-medium transition-colors">
