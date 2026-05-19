@@ -36,6 +36,7 @@ import { MessagesModule } from './modules/messages/messages.module';
 import { AnalyticsModule } from './modules/analytics/analytics.module';
 import { SettingsModule } from './modules/settings/settings.module';
 import { HealthModule } from './modules/health/health.module';
+import { ExportModule } from './modules/export/export.module';
 import { LoggerModule } from './common/services/logger.module';
 import { AuditModule } from './common/services/audit.module';
 
@@ -96,6 +97,7 @@ import { AuditModule } from './common/services/audit.module';
     AnalyticsModule,
     SettingsModule,
     HealthModule,
+    ExportModule,
   ],
   providers: [
     {

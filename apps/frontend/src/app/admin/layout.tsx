@@ -6,7 +6,7 @@ import Link from 'next/link';
 import {
   LayoutDashboard, User, FolderKanban, Zap, Briefcase, GraduationCap,
   Clock, BarChart3, Cog, MessageCircle, Image as ImageIcon, Settings,
-  ChevronLeft, ChevronRight, LogOut, Menu, X,
+  ChevronLeft, ChevronRight, LogOut, Menu, X, Activity, FileDown,
 } from 'lucide-react';
 import { isAuthenticated, clearTokens, api } from '@/lib/api-client';
 
@@ -22,6 +22,8 @@ const sidebarItems = [
   { label: 'Proses Kerja', href: '/admin/process-steps', icon: Cog },
   { label: 'Pesan', href: '/admin/messages', icon: MessageCircle },
   { label: 'Media', href: '/admin/media', icon: ImageIcon },
+  { label: 'Analitik', href: '/admin/analytics', icon: Activity },
+  { label: 'Export CV', href: '/admin/export', icon: FileDown },
   { label: 'Pengaturan', href: '/admin/settings', icon: Settings },
 ];
 

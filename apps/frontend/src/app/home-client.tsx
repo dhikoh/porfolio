@@ -13,6 +13,7 @@ import ProcessSection from '@/components/public/ProcessSection';
 import ContactSection from '@/components/public/ContactSection';
 import Footer from '@/components/public/Footer';
 import WhatsAppFloat from '@/components/public/WhatsAppFloat';
+import SplashScreen from '@/components/public/SplashScreen';
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 interface HomeClientProps {
@@ -46,6 +47,7 @@ export default function HomeClient({
 
   return (
     <>
+      <SplashScreen />
       <Navbar fullName={profile.fullName} />
       <main>
         <HeroSection profile={profile} />
