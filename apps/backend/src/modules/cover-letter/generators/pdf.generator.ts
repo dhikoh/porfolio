@@ -16,7 +16,7 @@ export async function generateCoverLetterPdf(dto: CreateCoverLetterDto): Promise
     doc.on('error', reject);
 
     const isEN = dto.language === 'en';
-    const pageWidth = doc.page.width - doc.page.margins.left - doc.page.margins.right;
+    const pageHeight = doc.page.height - doc.page.margins.bottom;
 
     // Register font
     doc.font('Times-Roman');
@@ -98,27 +98,38 @@ export async function generateCoverLetterPdf(dto: CreateCoverLetterDto): Promise
 
     // === Closing Paragraph ===
     doc.text(dto.closingParagraph, { align: 'justify', lineGap: 4 });
-    doc.moveDown(1);
+
+    // === PAGE BREAK GUARD for signature block ===
+    // Ensure entire signature block (Hormat saya + TTD + nama) fits on one page
+    const sigBlockHeight = 130; // estimated height: label(20) + space(10) + image(50) + space(30) + name(20)
+    if (doc.y + sigBlockHeight > pageHeight) {
+      doc.addPage();
+    }
+    doc.moveDown(1.5);
 
     // === Signature block (right-aligned) ===
     const sigBlockX = doc.page.width - doc.page.margins.right - 180;
-    doc.text(isEN ? 'Sincerely,' : 'Hormat saya,', sigBlockX, doc.y, { width: 180 });
-    doc.moveDown(0.3);
+    let cursorY = doc.y;
+
+    // "Hormat saya,"
+    doc.text(isEN ? 'Sincerely,' : 'Hormat saya,', sigBlockX, cursorY, { width: 180 });
+    cursorY = doc.y + 5;
 
     // Signature image if available
     if (dto.signatureUrl) {
       const sigPath = path.join(process.cwd(), dto.signatureUrl);
       if (fs.existsSync(sigPath)) {
-        doc.image(sigPath, sigBlockX, doc.y, { width: 120, height: 50 });
-        doc.moveDown(3);
+        doc.image(sigPath, sigBlockX + 10, cursorY, { width: 120, height: 50 });
+        cursorY += 55;
       } else {
-        doc.moveDown(3);
+        cursorY += 55;
       }
     } else {
-      doc.moveDown(3);
+      cursorY += 55;
     }
 
-    doc.text(`(${dto.fullName})`, sigBlockX, doc.y, { width: 180 });
+    // Name — explicit X,Y to maintain alignment
+    doc.text(`(${dto.fullName})`, sigBlockX, cursorY, { width: 180 });
 
     doc.end();
   });

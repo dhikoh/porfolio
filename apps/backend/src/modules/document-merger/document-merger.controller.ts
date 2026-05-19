@@ -6,6 +6,7 @@ import { ApiTags, ApiOperation, ApiBearerAuth, ApiConsumes } from '@nestjs/swagg
 import { AuthGuard } from '@nestjs/passport';
 import { FilesInterceptor } from '@nestjs/platform-express';
 import { memoryStorage } from 'multer';
+import { SkipThrottle } from '@nestjs/throttler';
 import { Response } from 'express';
 import { DocumentMergerService } from './document-merger.service';
 
@@ -38,10 +39,11 @@ export class DocumentMergerController {
   }
 
   @Post('merge')
+  @SkipThrottle()
   @UseInterceptors(FilesInterceptor('files', 20, {
     storage: memoryStorage(),
     fileFilter: mergerFileFilter,
-    limits: { fileSize: 50 * 1024 * 1024 }, // 50MB max per file
+    limits: { fileSize: 200 * 1024 * 1024 }, // 200MB max per file
   }))
   @ApiConsumes('multipart/form-data')
   @ApiOperation({ summary: 'Upload files and merge into single PDF' })
