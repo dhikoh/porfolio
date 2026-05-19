@@ -61,7 +61,7 @@ export default function HomeClient({
         {processSteps.length > 0 && <ProcessSection steps={processSteps} settings={settings} />}
         <ContactSection profile={profile} settings={settings} />
       </main>
-      <Footer settings={settings} />
+      <Footer settings={settings} profile={profile} />
       <WhatsAppFloat settings={settings} />
     </>
   );
