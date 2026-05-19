@@ -1,0 +1,51 @@
+# Dependencies
+node_modules/
+
+# Build outputs
+dist/
+.next/
+.nuxt/
+out/
+
+# Environment
+.env
+.env.local
+.env.production
+.env.staging
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+
+# Database
+*.db
+*.db-shm
+*.db-wal
+
+# Uploads (keep directory structure)
+apps/frontend/public/uploads/images/*
+apps/frontend/public/uploads/videos/*
+apps/frontend/public/uploads/documents/*
+!apps/frontend/public/uploads/images/.gitkeep
+!apps/frontend/public/uploads/videos/.gitkeep
+!apps/frontend/public/uploads/documents/.gitkeep
+apps/backend/uploads/*
+!apps/backend/uploads/.gitkeep
+
+# Testing
+coverage/
+
+# Misc
+*.tsbuildinfo
+next-env.d.ts
