@@ -64,7 +64,7 @@ import { AuditModule } from './common/services/audit.module';
           Timeline, Stat, ProcessStep, Media, Message, PageView,
           SiteSetting, AuditLog,
         ],
-        synchronize: config.get<string>('NODE_ENV') !== 'production',
+        synchronize: true, // Safe for portfolio — auto-creates missing tables
         logging: config.get<string>('NODE_ENV') === 'development' ? ['error', 'warn'] : ['error'],
       }),
     }),

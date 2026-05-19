@@ -42,7 +42,9 @@ export default function AdminProfilePage() {
     setSaving(true);
     setMessage('');
     try {
-      const updated = await api.updateProfile(profile);
+      // Strip non-DTO fields before sending
+      const { id, createdAt, updatedAt, ...profileData } = profile;
+      const updated = await api.updateProfile(profileData);
       setProfile(updated as Record<string, unknown>);
       setMessage('Profil berhasil disimpan!');
       setTimeout(() => setMessage(''), 3000);
