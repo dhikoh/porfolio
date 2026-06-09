@@ -34,7 +34,12 @@ export default function CrudPage({ title, fields, fetchAll, create, update, remo
 
   const load = useCallback(async () => {
     setLoading(true);
-    try { setItems(await fetchAll()); } catch { setError('Gagal memuat data'); }
+    try {
+      setItems(await fetchAll());
+    } catch (err) {
+      console.error('Error fetching data:', err);
+      setError('Gagal memuat data');
+    }
     setLoading(false);
   }, [fetchAll]);
 
@@ -69,6 +74,7 @@ export default function CrudPage({ title, fields, fetchAll, create, update, remo
       setEditing(null);
       await load();
     } catch (err) {
+      console.error('Error saving item:', err);
       setError(err instanceof Error ? err.message : 'Gagal menyimpan');
     }
     setSaving(false);
@@ -80,6 +86,7 @@ export default function CrudPage({ title, fields, fetchAll, create, update, remo
       await remove(id);
       await load();
     } catch (err) {
+      console.error('Error deleting item:', err);
       setError(err instanceof Error ? err.message : 'Gagal menghapus');
     }
   };
